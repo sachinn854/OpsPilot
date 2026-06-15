@@ -1,0 +1,47 @@
+# ============================================================
+# AI Operations Copilot — Python dependencies
+# Install:  pip install -r requirements.txt
+# ============================================================
+
+# --- Web framework / API ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20          # file uploads (RAG doc ingestion)
+
+# --- Config / validation ---
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# --- LLM provider (Groq) ---
+groq==0.18.0
+
+# --- Agent orchestration ---
+langgraph==0.2.62
+langchain-core==0.3.29
+
+# --- Vector DB (RAG + semantic memory) ---
+qdrant-client==1.12.2
+
+# --- Main DB (PostgreSQL) ---
+sqlalchemy==2.0.36
+greenlet==3.5.1                   # required by SQLAlchemy async
+alembic==1.14.0
+asyncpg==0.30.0                   # async Postgres driver
+psycopg2-binary==2.9.10           # sync driver (Alembic migrations)
+
+# --- Cache + async jobs ---
+redis==5.2.1
+celery==5.4.0
+
+# --- HTTP client (tools: GitHub, Slack, etc.) ---
+httpx==0.28.1
+
+# --- Observability (Phase 6) ---
+# langsmith==0.2.10
+# prometheus-client==0.21.1
+
+# --- Dev / testing ---
+pytest==8.3.4
+pytest-asyncio==0.25.0
+ruff==0.8.4

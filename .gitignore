@@ -1,0 +1,65 @@
+# ===== Secrets — NEVER commit these =====
+.env
+.env.*
+!.env.example          # keep the template tracked
+*.key
+*.pem
+secrets/
+*.secret
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.cache/
+*.bak
+
+# ===== Celery (background jobs) =====
+celerybeat-schedule
+celerybeat.pid
+
+# ===== Node / React (frontend) =====
+node_modules/
+frontend/build/
+frontend/dist/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ===== Databases / data =====
+*.sqlite3
+*.db
+qdrant_storage/
+postgres_data/
+redis_data/
+
+# ===== IDE / OS =====
+.vscode/
+.idea/
+.vs/
+.DS_Store
+Thumbs.db
+*.swp
+*.suo
+*~
+
+# ===== Logs =====
+logs/
+*.log
