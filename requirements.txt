@@ -23,6 +23,10 @@ langchain-core==0.3.29
 # --- Vector DB (RAG + semantic memory) ---
 qdrant-client==1.12.2
 
+# --- RAG: embeddings + document parsing ---
+fastembed==0.7.1                  # local embeddings (no API key, runs in-process)
+pypdf==5.1.0                      # extract text from uploaded PDFs
+
 # --- Main DB (PostgreSQL) ---
 sqlalchemy==2.0.36
 greenlet==3.5.1                   # required by SQLAlchemy async

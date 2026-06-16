@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_API_KEY: str = ""
 
+    # --- RAG / embeddings (Phase 2) ---
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"  # local, 384-dim, via fastembed
+    QDRANT_COLLECTION: str = "documents"
+    RAG_CHUNK_SIZE: int = 800       # characters per chunk
+    RAG_CHUNK_OVERLAP: int = 150    # overlap between consecutive chunks
+    RAG_TOP_K: int = 4              # chunks retrieved per query
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
