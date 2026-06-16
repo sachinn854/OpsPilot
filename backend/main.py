@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routes import chat
+from backend.api.routes import chat, documents
 from backend.config import settings
 
 logger = logging.getLogger("copilot")
@@ -51,6 +51,7 @@ app.add_middleware(
 )
 
 app.include_router(chat.router)
+app.include_router(documents.router)
 
 
 @app.get("/health", tags=["system"])
