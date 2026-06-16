@@ -7,10 +7,18 @@ so the app can still boot (and serve /health) even if GROQ_API_KEY isn't set yet
 """
 import json
 
-from groq import AsyncGroq
+from groq import AsyncGroq, BadRequestError
 
 from backend.config import settings
 from backend.llm.base import LLMProvider, LLMResponse, ToolCall
+
+
+def _is_tool_use_failure(exc: BadRequestError) -> bool:
+    """True if Groq rejected its own malformed tool call (retryable)."""
+    try:
+        return (exc.body or {}).get("error", {}).get("code") == "tool_use_failed"
+    except Exception:
+        return False
 
 
 class GroqProvider(LLMProvider):
@@ -45,7 +53,18 @@ class GroqProvider(LLMProvider):
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
 
-        response = await self.client.chat.completions.create(**kwargs)
+        # Groq's llama tool-calling parser occasionally rejects the model's own
+        # (malformed) tool call with a `tool_use_failed` 400. Because generation
+        # is stochastic, a couple of retries usually produce a valid call.
+        response = None
+        for attempt in range(3):
+            try:
+                response = await self.client.chat.completions.create(**kwargs)
+                break
+            except BadRequestError as exc:
+                if _is_tool_use_failure(exc) and attempt < 2:
+                    continue
+                raise
         message = response.choices[0].message
 
         tool_calls: list[ToolCall] = []
