@@ -53,3 +53,47 @@ class Message(Base):
     )
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — RAG knowledge base.
+#
+# A `Document` is one uploaded file. It is split into `DocumentChunk`s; each
+# chunk's embedding lives in Qdrant (keyed by `point_id`), while the chunk text
+# and metadata stay here in Postgres for citations and durability.
+# ---------------------------------------------------------------------------
+class Document(Base):
+    __tablename__ = "documents"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    filename: Mapped[str] = mapped_column(String(512))
+    source: Mapped[str] = mapped_column(String(512), default="upload")
+    num_chunks: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        back_populates="document",
+        order_by="DocumentChunk.chunk_index",
+        cascade="all, delete-orphan",
+    )
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    chunk_index: Mapped[int] = mapped_column()
+    content: Mapped[str] = mapped_column(Text)
+    point_id: Mapped[str] = mapped_column(String(64), index=True)  # Qdrant point id
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    document: Mapped["Document"] = relationship(back_populates="chunks")
