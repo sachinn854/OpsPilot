@@ -1,0 +1,50 @@
+# ============================================================
+# AI Operations Copilot — local services
+# Start:  docker-compose up -d
+# Stop:   docker-compose down
+# These provide PostgreSQL, Redis, and Qdrant for local dev.
+# ============================================================
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: copilot_postgres
+    environment:
+      POSTGRES_USER: copilot
+      POSTGRES_PASSWORD: copilot_pass
+      POSTGRES_DB: copilot
+    ports:
+      - "5433:5432"   # host 5433 (5432 used by another local project)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: copilot_redis
+    ports:
+      - "6380:6379"   # host 6380 (6379 used by another local project)
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: copilot_qdrant
+    ports:
+      - "6335:6333"   # REST API  (host 6335; 6333 used by another local project)
+      - "6336:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
