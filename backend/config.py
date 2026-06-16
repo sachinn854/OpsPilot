@@ -38,11 +38,16 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str = ""
 
     # --- RAG / embeddings (Phase 2) ---
-    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"  # local, 384-dim, via fastembed
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"  # dense, local, 384-dim (fastembed)
+    SPARSE_MODEL: str = "Qdrant/bm25"                # sparse/keyword, local (fastembed)
     QDRANT_COLLECTION: str = "documents"
     RAG_CHUNK_SIZE: int = 800       # characters per chunk
     RAG_CHUNK_OVERLAP: int = 150    # overlap between consecutive chunks
-    RAG_TOP_K: int = 4              # chunks retrieved per query
+    RAG_TOP_K: int = 4              # chunks returned per query
+    RAG_HYBRID: bool = True         # fuse semantic + BM25 keyword (cheap, accuracy↑)
+    # RAG_RERANK: future toggle — cross-encoder rerank. Kept OFF for now because it
+    # adds latency and isn't needed on a small KB. Turn on when the KB grows.
+    RAG_RERANK: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

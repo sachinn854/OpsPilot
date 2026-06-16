@@ -7,8 +7,8 @@ similarity score, ready to be formatted into a grounded LLM prompt.
 from pydantic import BaseModel
 
 from backend.config import settings
-from backend.rag.embeddings import embed_query
-from backend.rag.store import search
+from backend.rag.embeddings import embed_query, embed_sparse_query
+from backend.rag.store import hybrid_search, search
 
 
 class RetrievedChunk(BaseModel):
@@ -25,12 +25,23 @@ async def retrieve(
     org_id: str = "default",
     top_k: int | None = None,
 ) -> list[RetrievedChunk]:
-    """Return the top-k most relevant chunks for `query` within one org."""
+    """Return the top-k most relevant chunks for `query` within one org.
+
+    Uses hybrid (dense + BM25) search when `RAG_HYBRID` is on, else pure dense.
+    """
     if not query.strip():
         return []
 
-    vector = await embed_query(query)
-    points = await search(vector, top_k or settings.RAG_TOP_K, org_id)
+    k = top_k or settings.RAG_TOP_K
+    dense = await embed_query(query)
+
+    if settings.RAG_HYBRID:
+        sparse = await embed_sparse_query(query)
+        points = await hybrid_search(
+            dense, sparse.indices, sparse.values, k, org_id
+        )
+    else:
+        points = await search(dense, k, org_id)
 
     chunks: list[RetrievedChunk] = []
     for point in points:
