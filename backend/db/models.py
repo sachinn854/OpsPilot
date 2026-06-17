@@ -161,3 +161,34 @@ class ToolCallRecord(Base):
     )
 
     run: Mapped["Run"] = relationship(back_populates="tool_calls")
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — Human-in-the-loop approvals.
+#
+# When the Security agent flags a sensitive action, the run PAUSES (LangGraph
+# interrupt) and an `Approval` row is created (status=pending). A human approves
+# or rejects it; the decision resumes the run. Together `tool_calls` + `approvals`
+# form the audit trail (ARCHITECTURE.md §8).
+# ---------------------------------------------------------------------------
+class Approval(Base):
+    __tablename__ = "approvals"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"), index=True
+    )
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    action: Mapped[str] = mapped_column(String(255))  # short label, e.g. "rollback"
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    status: Mapped[str] = mapped_column(
+        String(20), default="pending"
+    )  # pending | approved | rejected
+    decided_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
