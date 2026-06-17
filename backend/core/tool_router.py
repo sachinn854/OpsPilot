@@ -34,3 +34,15 @@ class ToolRouter:
         except TypeError as exc:
             # Wrong/missing arguments from the model.
             return ToolResult(ok=False, error=f"Bad arguments for '{name}': {exc}")
+
+
+def build_default_router() -> "ToolRouter":
+    """The standard tool set used by the Copilot and the multi-agent runs.
+
+    Kept in one place so every entrypoint exposes the same tools. As tools move
+    to MCP (Phase 5), only this factory changes.
+    """
+    from backend.tools.github import GitHubCommitsTool, GitHubIssuesTool
+    from backend.tools.rag import RagSearchTool
+
+    return ToolRouter([GitHubIssuesTool(), GitHubCommitsTool(), RagSearchTool()])
