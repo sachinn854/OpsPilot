@@ -6,7 +6,7 @@ Provides:
   - `engine`            → async engine
   - `AsyncSessionLocal` → session factory
   - `get_session()`     → FastAPI dependency that yields a session
-  - `init_db()`         → create tables (Phase 1 convenience; Alembic migrations come later)
+  - `init_db()`         → create tables (convenience; Alembic migrations come later)
 """
 from collections.abc import AsyncGenerator
 
@@ -32,7 +32,7 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Create all tables. Convenient for Phase 1; replaced by Alembic later."""
+    """Create all tables. Convenient for now; replaced by Alembic later."""
     import backend.db.models  # noqa: F401  (ensure models are registered)
 
     async with engine.begin() as conn:

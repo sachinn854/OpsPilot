@@ -1,12 +1,12 @@
 """
-Tool Router (ARCHITECTURE.md §5.3).
+Tool Router.
 
 A small registry that:
   - holds the available tools,
   - exposes their schemas to the LLM,
   - dispatches a tool call by name to the right tool.
 
-Agents talk to this, never to a concrete tool. In Phase 5 an MCP adapter plugs
+Agents talk to this, never to a concrete tool. Later an MCP adapter plugs
 in here so tools can be discovered over the protocol — no agent changes needed.
 """
 from backend.tools.base import Tool, ToolResult
@@ -40,7 +40,7 @@ def build_default_router() -> "ToolRouter":
     """The standard tool set used by the Copilot and the multi-agent runs.
 
     Kept in one place so every entrypoint exposes the same tools. As tools move
-    to MCP (Phase 5), only this factory changes.
+    to MCP, only this factory changes.
     """
     from backend.tools.github import GitHubCommitsTool, GitHubIssuesTool
     from backend.tools.ops import RestartServiceTool, RollbackDeploymentTool

@@ -1,5 +1,5 @@
 """
-Reporting agent (Phase 3).
+Reporting agent.
 
 The final stage. It composes a clear, human-facing answer from everything the
 pipeline produced — research, execution results, and the Critic's verdict —

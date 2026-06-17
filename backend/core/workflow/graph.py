@@ -1,5 +1,5 @@
 """
-The multi-agent graph (Phase 3 + Phase 4 HITL).
+The multi-agent graph (with human-in-the-loop).
 
     planner → research → security ──safe──► execution → critic ─┐
                             │                   ▲                │ should_retry?

@@ -1,4 +1,4 @@
-"""RAG (Retrieval-Augmented Generation) package — Phase 2.
+"""RAG (Retrieval-Augmented Generation) package.
 
 Pipeline: ingest documents → embed → store in Qdrant → retrieve → grounded answer.
 """

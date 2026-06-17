@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_API_KEY: str = ""
 
-    # --- RAG / embeddings (Phase 2) ---
+    # --- RAG / embeddings ---
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"  # dense, local, 384-dim (fastembed)
     SPARSE_MODEL: str = "Qdrant/bm25"                # sparse/keyword, local (fastembed)
     QDRANT_COLLECTION: str = "documents"
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     # adds latency and isn't needed on a small KB. Turn on when the KB grows.
     RAG_RERANK: bool = False
 
-    # --- Multi-agent runs (Phase 3) ---
+    # --- Multi-agent runs ---
     CRITIC_CONFIDENCE_THRESHOLD: float = 0.7  # below this → retry the loop
     RUN_MAX_RETRIES: int = 2                   # max Critic-driven retries per run
 

@@ -1,5 +1,5 @@
 """
-Reflection gate (Phase 3).
+Reflection gate.
 
 The self-correction logic that decides, after the Critic has spoken, whether the
 run is good enough to report or should loop back and try again. Kept in one place

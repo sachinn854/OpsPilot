@@ -1,5 +1,5 @@
 """
-Retriever (Phase 2): embed a query → Qdrant search → top chunks.
+Retriever: embed a query → Qdrant search → top chunks.
 
 Returns a small, typed list of the most relevant chunks, each with its source and
 similarity score, ready to be formatted into a grounded LLM prompt.

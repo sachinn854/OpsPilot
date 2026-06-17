@@ -1,5 +1,5 @@
 """
-Ops action tools (Phase 4) — *sensitive* actions used to demo HITL.
+Ops action tools — *sensitive* actions used to demo HITL.
 
 These represent real operational actions (rollback, restart) that change live
 systems. They are intentionally marked sensitive (`sensitive = True`) so the

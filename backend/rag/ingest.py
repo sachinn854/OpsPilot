@@ -1,5 +1,5 @@
 """
-Document ingestion (Phase 2): load → chunk → embed → store.
+Document ingestion: load → chunk → embed → store.
 
 Given raw text, this:
   1. splits it into overlapping chunks,

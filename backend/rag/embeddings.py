@@ -1,5 +1,5 @@
 """
-Embeddings provider (Phase 2).
+Embeddings provider.
 
 Groq does NOT offer an embeddings API, so we generate vectors locally with
 `fastembed` (Qdrant's library). It runs *in-process* — no API key, no cost, and

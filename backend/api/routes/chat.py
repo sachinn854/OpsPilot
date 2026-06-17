@@ -1,7 +1,7 @@
 """
-Chat endpoint (Phase 1): POST /v1/chat
+Chat endpoint: POST /v1/chat
 
-Ties the whole Phase 1 pipeline together:
+Ties the whole chat pipeline together:
   load history → run Copilot (LLM + tools) → persist messages → return reply.
 
 Memory is the conversation history stored in Postgres. Pass back the returned

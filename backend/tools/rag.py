@@ -1,5 +1,5 @@
 """
-RAG search tool (Phase 2).
+RAG search tool.
 
 Wraps the retriever as a standard `Tool` so the Copilot agent can decide, on its
 own, to search the organization's uploaded documents when a question looks like

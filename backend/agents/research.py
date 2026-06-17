@@ -1,8 +1,8 @@
 """
-Research agent (Phase 3).
+Research agent.
 
 Gathers the context needed to achieve the goal. For now its knowledge source is
-the RAG knowledge base (Phase 2); memory and more sources slot in later. It
+the RAG knowledge base; memory and more sources slot in later. It
 retrieves the most relevant chunks and synthesizes grounded notes the rest of
 the pipeline can rely on — citing sources, never inventing facts.
 """

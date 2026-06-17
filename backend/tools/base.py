@@ -1,9 +1,9 @@
 """
-The standard Tool interface (ARCHITECTURE.md §5.9).
+The standard Tool interface.
 
 Every external capability (GitHub, Slack, DB, ...) implements this contract.
 Agents never touch these directly — they call them via the Tool Router. Because
-all tools share one shape, they can later be wrapped as MCP servers (Phase 5)
+all tools share one shape, they can later be wrapped as MCP servers
 without changing any agent code.
 """
 from abc import ABC, abstractmethod

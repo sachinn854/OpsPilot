@@ -1,1 +1,1 @@
-"""LangGraph workflow package (Phase 3): shared state + the agent graph."""
+"""LangGraph workflow package: shared state + the agent graph."""

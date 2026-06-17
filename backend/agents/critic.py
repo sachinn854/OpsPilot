@@ -1,5 +1,5 @@
 """
-Critic agent (Phase 3).
+Critic agent.
 
 The self-correction gate. It inspects the goal, the research, and the execution
 output and judges whether the goal is actually satisfied — returning a typed

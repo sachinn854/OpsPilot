@@ -1,5 +1,5 @@
 """
-Copilot agent (Phase 1) — a single agent with a tool-calling loop.
+Copilot agent — a single agent with a tool-calling loop.
 
 Flow:
   1. Send conversation + available tool schemas to the LLM.
@@ -7,7 +7,7 @@ Flow:
      results back.
   3. Repeat until the LLM returns a normal answer (or we hit the step limit).
 
-This is the seed of the multi-agent system: in Phase 3 this single loop is split
+This is the seed of the multi-agent system: this single loop is later split
 into Planner → Research → Execution → Critic.
 """
 import json

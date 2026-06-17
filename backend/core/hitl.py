@@ -1,5 +1,5 @@
 """
-HITL Manager (Phase 4, ARCHITECTURE.md §5.7).
+HITL Manager.
 
 The bridge between a paused run and a human decision. The graph pauses on a
 sensitive action (LangGraph interrupt); this module records the pending

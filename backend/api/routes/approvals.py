@@ -1,5 +1,5 @@
 """
-Approvals endpoints (Phase 4 — HITL).
+Approvals endpoints (human-in-the-loop).
 
   GET  /v1/approvals             → list pending approvals (runs paused on a
                                    sensitive action, awaiting a human)

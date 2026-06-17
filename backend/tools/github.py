@@ -1,5 +1,5 @@
 """
-GitHub tools (Phase 1).
+GitHub tools.
 
 Two focused tools the Copilot can call:
   - github_list_issues  → list issues for a repo

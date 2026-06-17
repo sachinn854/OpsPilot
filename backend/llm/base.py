@@ -3,7 +3,7 @@ LLM provider abstraction.
 
 Agents NEVER call the Groq SDK directly — they go through this interface. That
 keeps the provider swappable (Groq today, OpenAI/Anthropic/Ollama tomorrow) with
-a one-line change, exactly as described in ARCHITECTURE.md §4.3.
+a one-line change.
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

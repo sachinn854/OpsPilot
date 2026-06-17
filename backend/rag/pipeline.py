@@ -1,5 +1,5 @@
 """
-RAG pipeline (Phase 2): query → retrieve → grounded answer with citations.
+RAG pipeline: query → retrieve → grounded answer with citations.
 
 The retrieved chunks are formatted as a numbered context block. The LLM is told
 to answer ONLY from that context and to cite sources as [1], [2], ... — so every

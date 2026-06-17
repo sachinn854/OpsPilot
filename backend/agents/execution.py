@@ -1,8 +1,8 @@
 """
-Execution agent (Phase 3).
+Execution agent.
 
 Carries out the plan's actions by calling tools through the Tool Router — the
-same tool-calling loop the Phase 1 Copilot used, but now one specialized stage
+same tool-calling loop the Copilot used, but now one specialized stage
 in the graph. It is given the goal, the plan, and the research notes, and it
 returns what it did plus a structured log of every tool call (for the `runs` /
 `tool_calls` audit trail).

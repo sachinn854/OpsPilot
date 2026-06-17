@@ -1,7 +1,7 @@
 """
 Base agent.
 
-In Phase 1 we have a single agent. From Phase 3 onward, specialized agents
+A single agent to start with; specialized agents
 (Planner, Research, Execution, Critic, ...) all build on this contract: an LLM
 provider plus a system prompt that defines the agent's role.
 """

@@ -1,11 +1,11 @@
 """
-Database models (Phase 1): conversations and messages.
+Database models: conversations and messages.
 
 These back the Copilot's basic memory — the conversation history that gets loaded
 on each request so the agent has context. More tables (runs, tool_calls,
-approvals, documents, memories) are added in later phases per ARCHITECTURE.md §8.
+approvals, documents, memories) are added as the system grows.
 
-Note: every table carries `org_id` for multi-tenancy (CLAUDE.md rule). The
+Note: every table carries `org_id` for multi-tenancy. The
 `organizations` table itself arrives with auth in a later phase; for now we
 default to "default".
 """
@@ -65,7 +65,7 @@ class Message(Base):
 
 
 # ---------------------------------------------------------------------------
-# Phase 2 — RAG knowledge base.
+# RAG knowledge base.
 #
 # A `Document` is one uploaded file. It is split into `DocumentChunk`s; each
 # chunk's embedding lives in Qdrant (keyed by `point_id`), while the chunk text
@@ -109,7 +109,7 @@ class DocumentChunk(Base):
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 — Multi-agent runs.
+# Multi-agent runs.
 #
 # A `Run` is one goal driven through the LangGraph flow
 # (Planner → Research → Execution → Critic → Reporting). Every tool the
@@ -164,12 +164,12 @@ class ToolCallRecord(Base):
 
 
 # ---------------------------------------------------------------------------
-# Phase 4 — Human-in-the-loop approvals.
+# Human-in-the-loop approvals.
 #
 # When the Security agent flags a sensitive action, the run PAUSES (LangGraph
 # interrupt) and an `Approval` row is created (status=pending). A human approves
 # or rejects it; the decision resumes the run. Together `tool_calls` + `approvals`
-# form the audit trail (ARCHITECTURE.md §8).
+# form the audit trail.
 # ---------------------------------------------------------------------------
 class Approval(Base):
     __tablename__ = "approvals"

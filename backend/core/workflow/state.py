@@ -1,5 +1,5 @@
 """
-Shared run state (Phase 3).
+Shared run state.
 
 This is the single object that flows through the LangGraph graph. Each node reads
 what it needs and returns a partial update; LangGraph merges it in. Typed payloads

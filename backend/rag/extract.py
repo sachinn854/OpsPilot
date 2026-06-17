@@ -1,5 +1,5 @@
 """
-Text extraction from uploaded files (Phase 2).
+Text extraction from uploaded files.
 
 Supports plain text/markdown directly and PDFs via pypdf. Other types raise a
 clear error so the API can return a helpful 400.

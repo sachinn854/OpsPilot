@@ -1,5 +1,5 @@
 """
-Qdrant vector store (Phase 2) — hybrid (dense + sparse) search.
+Qdrant vector store — hybrid (dense + sparse) search.
 
 The collection holds two named vectors per chunk:
   - "dense" : semantic embedding (cosine)

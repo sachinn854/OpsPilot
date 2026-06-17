@@ -1,5 +1,5 @@
 """
-Planner agent (Phase 3).
+Planner agent.
 
 Takes a high-level goal and breaks it into an ordered list of concrete steps.
 Each step is tagged as either:

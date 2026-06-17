@@ -1,5 +1,5 @@
 """
-Run orchestrator (Phase 3 + Phase 4 HITL).
+Run orchestrator.
 
 Owns one multi-agent run end to end:
   1. create a `Run` row (status = running),
@@ -10,7 +10,7 @@ Owns one multi-agent run end to end:
   4. on a human decision, `resume_run()` continues from the exact paused node.
 
 The graph holds the reasoning; the orchestrator holds the *run* — state, the audit
-trail, pause/resume, and error handling (ARCHITECTURE.md §5, §7.2).
+trail, pause/resume, and error handling.
 """
 import json
 from datetime import datetime, timezone

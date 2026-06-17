@@ -4,7 +4,7 @@ AI Operations Copilot — FastAPI application entrypoint.
 Run locally:
     uvicorn backend.main:app --reload
 
-Phase 1 adds the /v1/chat endpoint (single Copilot agent + GitHub tools +
+The /v1/chat endpoint (single Copilot agent + GitHub tools +
 conversation memory). Tables are created on startup for convenience; Alembic
 migrations replace this in a later phase.
 """

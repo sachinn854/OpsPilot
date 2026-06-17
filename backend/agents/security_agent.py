@@ -1,5 +1,5 @@
 """
-Security agent (Phase 4).
+Security agent.
 
 Classifies whether achieving the goal requires a SENSITIVE action — one that
 changes a live system (deploy/rollback/restart/delete/scale, sending external

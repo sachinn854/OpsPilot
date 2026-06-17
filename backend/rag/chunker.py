@@ -1,5 +1,5 @@
 """
-Text chunking (Phase 2).
+Text chunking.
 
 Splits a long document into overlapping character windows. Overlap keeps context
 from spilling across a hard cut, so a sentence split between two chunks still has

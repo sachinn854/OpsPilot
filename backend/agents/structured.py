@@ -1,12 +1,12 @@
 """
-Structured LLM output helper (Phase 3).
+Structured LLM output helper.
 
 Agents need typed, validated outputs (a Plan, a Verdict, ...), not free text.
 This asks the LLM to return JSON matching a Pydantic schema, parses it robustly
 (tolerates code fences / stray prose), validates it, and retries once with the
 error fed back if the model gets it wrong.
 
-All LLM access still goes through the `LLMProvider` abstraction (CLAUDE.md rule).
+All LLM access still goes through the `LLMProvider` abstraction.
 """
 import json
 from typing import TypeVar

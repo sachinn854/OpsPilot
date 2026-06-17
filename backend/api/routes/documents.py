@@ -1,5 +1,5 @@
 """
-Documents endpoints (Phase 2): ingest files and ask grounded questions.
+Documents endpoints: ingest files and ask grounded questions.
 
   POST /v1/documents        → upload a file (.txt/.md/.pdf) → chunk + embed + store
   POST /v1/documents/ask    → ask a question → cited answer from the documents

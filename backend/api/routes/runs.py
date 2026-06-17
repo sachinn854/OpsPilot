@@ -1,11 +1,11 @@
 """
-Runs endpoints (Phase 3): drive a goal through the multi-agent system.
+Runs endpoints: drive a goal through the multi-agent system.
 
   POST /v1/runs        → give a goal → Planner→Research→Execution→Critic→Reporting
   GET  /v1/runs        → list past runs
   GET  /v1/runs/{id}   → fetch one run (plan, report, confidence, tool calls)
 
-This is the §2.3 "north-star" flow: plan, gather, act, self-verify, report.
+This is the end-to-end flow: plan, gather, act, self-verify, report.
 Org scoping stays "default" until auth lands.
 """
 from fastapi import APIRouter, Depends, HTTPException

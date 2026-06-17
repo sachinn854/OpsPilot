@@ -1,5 +1,5 @@
 """
-Shared API dependencies (Phase 4).
+Shared API dependencies.
 
 The Orchestrator is a process-wide singleton because its compiled LangGraph holds
 the in-memory checkpointer that keeps a paused (awaiting-approval) run alive
