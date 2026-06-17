@@ -15,6 +15,12 @@ Decision = Literal["retry", "report"]
 
 def should_retry(state: RunState) -> Decision:
     """Return "report" if the work passes (or we're out of retries), else "retry"."""
+    # Safety: if a sensitive action was approved and executed, never loop back —
+    # retrying would re-run the side-effecting action (a second rollback!). Report
+    # with what we have instead.
+    if state.get("approved"):
+        return "report"
+
     verdict = state.get("verdict")
     attempts = state.get("attempts", 0)
 

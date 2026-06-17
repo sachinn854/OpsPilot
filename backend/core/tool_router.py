@@ -43,6 +43,24 @@ def build_default_router() -> "ToolRouter":
     to MCP (Phase 5), only this factory changes.
     """
     from backend.tools.github import GitHubCommitsTool, GitHubIssuesTool
+    from backend.tools.ops import RestartServiceTool, RollbackDeploymentTool
     from backend.tools.rag import RagSearchTool
 
-    return ToolRouter([GitHubIssuesTool(), GitHubCommitsTool(), RagSearchTool()])
+    return ToolRouter(
+        [
+            GitHubIssuesTool(),
+            GitHubCommitsTool(),
+            RagSearchTool(),
+            RollbackDeploymentTool(),
+            RestartServiceTool(),
+        ]
+    )
+
+
+def sensitive_tool_names(router: "ToolRouter") -> set[str]:
+    """Names of tools in `router` that require human approval before running."""
+    return {
+        name
+        for name, tool in router._tools.items()
+        if getattr(tool, "sensitive", False)
+    }

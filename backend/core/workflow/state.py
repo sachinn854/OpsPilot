@@ -26,6 +26,12 @@ class RunState(TypedDict, total=False):
     research_notes: str
     sources: list[str]
 
+    # security / HITL
+    sensitive: bool
+    security_action: str
+    security_reason: str
+    approved: bool
+
     # execution
     execution_output: str
     tool_calls: list[ToolCallLog]
