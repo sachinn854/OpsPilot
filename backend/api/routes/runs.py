@@ -13,17 +13,15 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.orchestrator import Orchestrator, RunResult
-from backend.core.tool_router import build_default_router
+from backend.api.deps import get_orchestrator
+from backend.core.orchestrator import RunResult
 from backend.db.models import Run
 from backend.db.session import get_session
-from backend.llm.groq_provider import GroqProvider
 
 router = APIRouter(prefix="/v1/runs", tags=["runs"])
 
 _ORG = "default"
-# Build the orchestrator once (cheap singletons; graph compiled at import time).
-_orchestrator = Orchestrator(llm=GroqProvider(), router=build_default_router())
+_orchestrator = get_orchestrator()
 
 
 class RunRequest(BaseModel):
