@@ -20,10 +20,11 @@ class ToolResult(BaseModel):
 
 
 class Tool(ABC):
-    # Subclasses set these three as class attributes.
+    # Subclasses set these as class attributes.
     name: str
     description: str
     parameters: dict  # JSON Schema describing the tool's arguments
+    sensitive: bool = False  # True → needs human approval (HITL) before running
 
     @abstractmethod
     async def run(self, **kwargs) -> ToolResult:
