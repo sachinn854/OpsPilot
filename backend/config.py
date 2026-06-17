@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # adds latency and isn't needed on a small KB. Turn on when the KB grows.
     RAG_RERANK: bool = False
 
+    # --- Multi-agent runs (Phase 3) ---
+    CRITIC_CONFIDENCE_THRESHOLD: float = 0.7  # below this → retry the loop
+    RUN_MAX_RETRIES: int = 2                   # max Critic-driven retries per run
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

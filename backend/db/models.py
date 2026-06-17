@@ -12,7 +12,16 @@ default to "default".
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.session import Base
@@ -97,3 +106,58 @@ class DocumentChunk(Base):
     )
 
     document: Mapped["Document"] = relationship(back_populates="chunks")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Multi-agent runs.
+#
+# A `Run` is one goal driven through the LangGraph flow
+# (Planner → Research → Execution → Critic → Reporting). Every tool the
+# Execution agent calls is logged as a `ToolCallRecord` for traceability.
+# Structured payloads (plan, sources) are stored as JSON text for durability.
+# ---------------------------------------------------------------------------
+class Run(Base):
+    __tablename__ = "runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    goal: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(
+        String(20), default="running"
+    )  # running | completed | failed
+    plan: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    report: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    tool_calls: Mapped[list["ToolCallRecord"]] = relationship(
+        back_populates="run",
+        order_by="ToolCallRecord.created_at",
+        cascade="all, delete-orphan",
+    )
+
+
+class ToolCallRecord(Base):
+    __tablename__ = "tool_calls"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"), index=True
+    )
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    tool_name: Mapped[str] = mapped_column(String(128))
+    arguments: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    result: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    ok: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    run: Mapped["Run"] = relationship(back_populates="tool_calls")
