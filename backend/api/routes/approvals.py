@@ -8,14 +8,16 @@ Approvals endpoints (human-in-the-loop).
 Approving resumes the paused LangGraph run from the exact node; rejecting lets it
 finish with an "aborted" report. Org scoping stays "default" until auth lands.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.deps import get_orchestrator
+from backend.api.deps import get_orchestrator, limiter
+from backend.config import settings
 from backend.core import hitl
 from backend.core.orchestrator import RunResult
 from backend.db.session import get_session
+from backend.security.rbac import Role, require_role
 
 router = APIRouter(prefix="/v1/approvals", tags=["approvals"])
 
@@ -37,7 +39,9 @@ class DecisionRequest(BaseModel):
 
 
 @router.get("", response_model=list[ApprovalInfo])
+@limiter.limit(settings.RATE_LIMIT_APPROVALS)
 async def list_approvals(
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> list[ApprovalInfo]:
     pending = await hitl.list_pending(session, org_id=_ORG)
@@ -54,10 +58,13 @@ async def list_approvals(
 
 
 @router.post("/{approval_id}", response_model=RunResult)
+@limiter.limit(settings.RATE_LIMIT_APPROVALS)
 async def decide(
+    request: Request,
     approval_id: str,
     req: DecisionRequest,
     session: AsyncSession = Depends(get_session),
+    _role: Role = require_role(Role.operator),
 ) -> RunResult:
     approval = await hitl.get_approval(session, approval_id, org_id=_ORG)
     if approval is None:

@@ -8,15 +8,18 @@ Runs endpoints: drive a goal through the multi-agent system.
 This is the end-to-end flow: plan, gather, act, self-verify, report.
 Org scoping stays "default" until auth lands.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.deps import get_orchestrator
+from backend.api.deps import get_orchestrator, limiter
+from backend.config import settings
 from backend.core.orchestrator import RunResult
 from backend.db.models import Run
 from backend.db.session import get_session
+from backend.security.guardrails import check_injection
+from backend.security.rbac import Role, require_role
 
 router = APIRouter(prefix="/v1/runs", tags=["runs"])
 
@@ -38,11 +41,18 @@ class RunInfo(BaseModel):
 
 
 @router.post("", response_model=RunResult)
+@limiter.limit(settings.RATE_LIMIT_RUNS)
 async def create_run(
-    req: RunRequest, session: AsyncSession = Depends(get_session)
+    request: Request,
+    req: RunRequest,
+    session: AsyncSession = Depends(get_session),
+    _role: Role = require_role(Role.operator),
 ) -> RunResult:
     if not req.goal.strip():
         raise HTTPException(status_code=400, detail="goal cannot be empty")
+    guard = check_injection(req.goal)
+    if not guard.safe:
+        raise HTTPException(status_code=400, detail=guard.reason)
     try:
         return await _orchestrator.run(
             session, goal=req.goal, org_id=_ORG, top_k=req.top_k

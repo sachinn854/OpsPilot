@@ -7,6 +7,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20          # file uploads (RAG doc ingestion)
+slowapi==0.1.10                   # rate limiting (wraps `limits` library)
 
 # --- Config / validation ---
 pydantic==2.10.4

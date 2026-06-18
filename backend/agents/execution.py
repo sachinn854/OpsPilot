@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from backend.agents.base import BaseAgent
 from backend.core.tool_router import ToolRouter
 from backend.llm.base import LLMProvider
+from backend.security.secrets import redact
 
 EXECUTION_PROMPT = """You are the Execution agent in a multi-agent operations copilot.
 
@@ -105,7 +106,7 @@ class ExecutionAgent(BaseAgent):
                     {
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "content": json.dumps(result_data),
+                        "content": redact(json.dumps(result_data)),
                     }
                 )
 

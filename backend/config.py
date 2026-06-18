@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     CRITIC_CONFIDENCE_THRESHOLD: float = 0.7  # below this → retry the loop
     RUN_MAX_RETRIES: int = 2                   # max Critic-driven retries per run
 
+    # --- Rate limiting (slowapi, per-IP) ---
+    RATE_LIMIT_CHAT: str = "30/minute"
+    RATE_LIMIT_RUNS: str = "10/minute"
+    RATE_LIMIT_APPROVALS: str = "20/minute"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
