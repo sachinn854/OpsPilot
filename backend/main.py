@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import make_asgi_app
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -62,6 +63,9 @@ app.include_router(documents.router)
 app.include_router(runs.router)
 app.include_router(approvals.router)
 app.include_router(mcp.router)
+
+# Prometheus scrape endpoint — Prometheus polls GET /metrics.
+app.mount("/metrics", make_asgi_app())
 
 
 @app.get("/health", tags=["system"])
