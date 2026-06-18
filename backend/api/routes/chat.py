@@ -13,23 +13,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.agents.copilot import CopilotAgent
-from backend.api.deps import limiter
+from backend.api.deps import get_registry, limiter
 from backend.config import settings
-from backend.core.tool_router import ToolRouter
 from backend.db.models import Conversation, Message
 from backend.db.session import get_session
 from backend.llm.groq_provider import GroqProvider
 from backend.security.guardrails import check_injection
-from backend.tools.github import GitHubCommitsTool, GitHubIssuesTool
-from backend.tools.rag import RagSearchTool
 
 router = APIRouter(prefix="/v1", tags=["chat"])
 
-# Build the Copilot once at import time (cheap singletons).
-_tool_router = ToolRouter(
-    [GitHubIssuesTool(), GitHubCommitsTool(), RagSearchTool()]
-)
-_copilot = CopilotAgent(llm=GroqProvider(), router=_tool_router)
+# Copilot uses the registry-built ToolRouter so it gets whatever tools are
+# enabled via TOOLS_ENABLED — no code change needed to add/remove tools.
+_copilot = CopilotAgent(llm=GroqProvider(), router=get_registry().build_router())
 
 
 class ChatRequest(BaseModel):

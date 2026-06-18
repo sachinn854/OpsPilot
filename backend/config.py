@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     RATE_LIMIT_RUNS: str = "10/minute"
     RATE_LIMIT_APPROVALS: str = "20/minute"
 
+    # --- MCP tool registry ---
+    # Comma-separated server names to enable, or "all" for everything.
+    TOOLS_ENABLED: str = "github,rag,ops,slack,search,monitoring"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
