@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models import Approval, Run
+from backend.observability.metrics import ACTIVE_APPROVALS
 
 
 async def create_pending_approval(
@@ -61,6 +62,7 @@ async def record_decision(
     approval.status = "approved" if approved else "rejected"
     approval.decided_by = decided_by
     approval.decided_at = datetime.now(timezone.utc)
+    ACTIVE_APPROVALS.dec()
     await session.flush()
 
 

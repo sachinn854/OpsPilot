@@ -13,6 +13,7 @@ The graph holds the reasoning; the orchestrator holds the *run* — state, the a
 trail, pause/resume, and error handling.
 """
 import json
+import time
 from datetime import datetime, timezone
 
 from langgraph.types import Command
@@ -25,6 +26,12 @@ from backend.core.workflow.graph import build_graph
 from backend.core.workflow.state import RunState
 from backend.db.models import Approval, Run, ToolCallRecord
 from backend.llm.base import LLMProvider
+from backend.observability.metrics import (
+    ACTIVE_APPROVALS,
+    RUNS_TOTAL,
+    RUN_DURATION,
+    TOOL_CALLS_TOTAL,
+)
 
 
 class RunResult(BaseModel):
@@ -61,6 +68,7 @@ class Orchestrator:
         session.add(run)
         await session.flush()  # assigns run.id
 
+        _start = time.monotonic()
         config = {"configurable": {"thread_id": run.id}}
         try:
             final: RunState = await self.graph.ainvoke(
@@ -74,8 +82,10 @@ class Orchestrator:
                 config,
             )
         except Exception as exc:  # noqa: BLE001 — record failure, don't crash the API
+            RUN_DURATION.observe(time.monotonic() - _start)
             return await self._fail(session, run, exc)
 
+        RUN_DURATION.observe(time.monotonic() - _start)
         payload = await self._interrupt_payload(config)
         if payload is not None:
             return await self._pause(session, run, payload)
@@ -130,6 +140,8 @@ class Orchestrator:
             payload=payload,
         )
         run.status = "awaiting_approval"
+        RUNS_TOTAL.labels(status="awaiting_approval").inc()
+        ACTIVE_APPROVALS.inc()
         await session.commit()
         return RunResult(
             run_id=run.id,
@@ -159,7 +171,9 @@ class Orchestrator:
         run.attempts = final.get("attempts", 0)
         run.completed_at = datetime.now(timezone.utc)
 
+        RUNS_TOTAL.labels(status="completed").inc()
         for call in tool_calls:
+            TOOL_CALLS_TOTAL.labels(tool_name=call.tool_name, ok=str(call.ok).lower()).inc()
             session.add(
                 ToolCallRecord(
                     run_id=run.id,
@@ -190,5 +204,6 @@ class Orchestrator:
         run.status = "failed"
         run.error = str(exc)
         run.completed_at = datetime.now(timezone.utc)
+        RUNS_TOTAL.labels(status="failed").inc()
         await session.commit()
         raise exc

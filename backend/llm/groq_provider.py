@@ -11,6 +11,7 @@ from groq import AsyncGroq, BadRequestError
 
 from backend.config import settings
 from backend.llm.base import LLMProvider, LLMResponse, ToolCall
+from backend.observability.metrics import LLM_REQUESTS_TOTAL, LLM_TOKENS_TOTAL
 
 
 def _is_tool_use_failure(exc: BadRequestError) -> bool:
@@ -65,6 +66,11 @@ class GroqProvider(LLMProvider):
                 if _is_tool_use_failure(exc) and attempt < 2:
                     continue
                 raise
+        LLM_REQUESTS_TOTAL.labels(provider="groq").inc()
+        if response.usage:
+            LLM_TOKENS_TOTAL.labels(kind="prompt").inc(response.usage.prompt_tokens or 0)
+            LLM_TOKENS_TOTAL.labels(kind="completion").inc(response.usage.completion_tokens or 0)
+
         message = response.choices[0].message
 
         tool_calls: list[ToolCall] = []

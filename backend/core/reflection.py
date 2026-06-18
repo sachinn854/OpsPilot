@@ -9,6 +9,7 @@ from typing import Literal
 
 from backend.config import settings
 from backend.core.workflow.state import RunState
+from backend.observability.metrics import CRITIC_RETRIES_TOTAL
 
 Decision = Literal["retry", "report"]
 
@@ -35,4 +36,5 @@ def should_retry(state: RunState) -> Decision:
     if attempts > settings.RUN_MAX_RETRIES:
         return "report"  # out of budget — report the best we have
 
+    CRITIC_RETRIES_TOTAL.inc()
     return "retry"
