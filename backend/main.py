@@ -26,6 +26,9 @@ logger = logging.getLogger("copilot")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from backend.observability.tracing import init_tracing
+    init_tracing()
+
     # Best-effort DB init — the app still boots (and /health works) if the
     # database isn't running yet, so setup is forgiving.
     try:

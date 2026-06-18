@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     # Comma-separated server names to enable, or "all" for everything.
     TOOLS_ENABLED: str = "github,rag,ops,slack,search,monitoring"
 
+    # --- LangSmith tracing (optional) ---
+    LANGSMITH_API_KEY: str = ""
+    LANGSMITH_PROJECT: str = "ai-operations-copilot"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
