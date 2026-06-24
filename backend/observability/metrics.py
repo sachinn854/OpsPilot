@@ -39,6 +39,7 @@ ACTIVE_APPROVALS = Gauge(
     "copilot_active_approvals",
     "Number of HITL approvals currently in 'pending' state.",
 )
+ACTIVE_APPROVALS.set(0)  # ensure the gauge appears in first scrape, not as NaN
 
 LLM_REQUESTS_TOTAL = Counter(
     "copilot_llm_requests_total",

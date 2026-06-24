@@ -48,11 +48,13 @@ class ToolRegistry:
         return specs
 
     def build_router(self) -> ToolRouter:
-        """Return a ToolRouter wired with all tools from active servers."""
-        tools: list[Tool] = []
-        for server in self._active():
-            tools.extend(server.tools())
-        return ToolRouter(tools)
+        """Return a cached ToolRouter wired with all tools from active servers."""
+        if not hasattr(self, "_cached_router"):
+            tools: list[Tool] = []
+            for server in self._active():
+                tools.extend(server.tools())
+            self._cached_router = ToolRouter(tools)
+        return self._cached_router
 
     def get_tool(self, name: str) -> Tool | None:
         """Look up a tool by name across active servers."""
