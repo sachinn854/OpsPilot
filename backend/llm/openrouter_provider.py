@@ -1,56 +1,37 @@
-"""
-Groq implementation of the LLMProvider interface.
-
-Uses Groq's async client (OpenAI-compatible API), so tool-calling works with the
-standard `tools` / `tool_calls` shape. The client is created lazily on first use
-so the app can still boot (and serve /health) even if GROQ_API_KEY isn't set yet.
-"""
 import json
 
-from groq import AsyncGroq, BadRequestError
+from openai import AsyncOpenAI, BadRequestError, APIStatusError
 
 from backend.config import settings
 from backend.llm.base import LLMProvider, LLMResponse, ToolCall
 from backend.observability.metrics import LLM_REQUESTS_TOTAL, LLM_TOKENS_TOTAL
 
-
-def _is_tool_use_failure(exc: BadRequestError) -> bool:
-    """True if Groq rejected its own malformed tool call (retryable).
-
-    Covers both the `tool_use_failed` error code and the schema-validation
-    variant ("tool call validation failed: parameters ... did not match schema").
-    """
-    try:
-        body = exc.body if isinstance(exc.body, dict) else {}
-        err = body.get("error", {}) if isinstance(body, dict) else {}
-        if isinstance(err, dict) and err.get("code") == "tool_use_failed":
-            return True
-        msg = (err.get("message") if isinstance(err, dict) else "") or str(exc)
-        msg = msg.lower()
-        return (
-            "tool_use_failed" in msg
-            or "tool call validation failed" in msg
-            or "did not match schema" in msg
-        )
-    except Exception:
-        return False
+_BASE_URL = "https://openrouter.ai/api/v1"
+_EXTRA_HEADERS = {
+    "HTTP-Referer": "https://github.com/ai-ops-copilot",
+    "X-Title": "AI Operations Copilot",
+}
 
 
-class GroqProvider(LLMProvider):
+class OpenRouterProvider(LLMProvider):
     def __init__(self, api_key: str | None = None, model: str | None = None):
-        self._api_key = api_key or settings.GROQ_API_KEY
-        self._model = model or settings.GROQ_MODEL
-        self._client: AsyncGroq | None = None
+        self._api_key = api_key or settings.OPENROUTER_API_KEY
+        self._model = model or settings.OPENROUTER_MODEL
+        self._client: AsyncOpenAI | None = None
 
     @property
-    def client(self) -> AsyncGroq:
+    def client(self) -> AsyncOpenAI:
         if self._client is None:
             if not self._api_key:
                 raise RuntimeError(
-                    "GROQ_API_KEY is not set. Add it to your .env file "
-                    "(get a free key at https://console.groq.com)."
+                    "OPENROUTER_API_KEY is not set. Add it to your .env file "
+                    "(get a key at https://openrouter.ai/keys)."
                 )
-            self._client = AsyncGroq(api_key=self._api_key)
+            self._client = AsyncOpenAI(
+                base_url=_BASE_URL,
+                api_key=self._api_key,
+                default_headers=_EXTRA_HEADERS,
+            )
         return self._client
 
     async def chat(
@@ -68,32 +49,30 @@ class GroqProvider(LLMProvider):
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
 
-        # Groq's llama tool-calling parser occasionally rejects the model's own
-        # (malformed) tool call with a `tool_use_failed` 400. Because generation
-        # is stochastic, a couple of retries usually produce a valid call.
-        # If all retries fail, fall back to a tool-free call so the agent can
-        # still produce a text response instead of crashing.
         response = None
         for attempt in range(3):
             try:
                 response = await self.client.chat.completions.create(**kwargs)
                 break
             except BadRequestError as exc:
-                if _is_tool_use_failure(exc) and attempt < 2:
+                msg = str(exc).lower()
+                is_tool_err = (
+                    "tool" in msg and ("validation" in msg or "schema" in msg or "failed" in msg)
+                )
+                if is_tool_err and attempt < 2:
                     continue
-                if _is_tool_use_failure(exc):
-                    # All tool-call retries exhausted — strip tools and try once more.
-                    fallback_kwargs = {k: v for k, v in kwargs.items() if k not in ("tools", "tool_choice")}
-                    response = await self.client.chat.completions.create(**fallback_kwargs)
+                if is_tool_err:
+                    fallback = {k: v for k, v in kwargs.items() if k not in ("tools", "tool_choice")}
+                    response = await self.client.chat.completions.create(**fallback)
                     break
                 raise
-        LLM_REQUESTS_TOTAL.labels(provider="groq").inc()
+
+        LLM_REQUESTS_TOTAL.labels(provider="openrouter").inc()
         if response.usage:
             LLM_TOKENS_TOTAL.labels(kind="prompt").inc(response.usage.prompt_tokens or 0)
             LLM_TOKENS_TOTAL.labels(kind="completion").inc(response.usage.completion_tokens or 0)
 
         message = response.choices[0].message
-
         tool_calls: list[ToolCall] = []
         for tc in message.tool_calls or []:
             try:
@@ -103,7 +82,6 @@ class GroqProvider(LLMProvider):
             tool_calls.append(
                 ToolCall(id=tc.id, name=tc.function.name, arguments=arguments)
             )
-
         return LLMResponse(content=message.content, tool_calls=tool_calls)
 
     async def chat_stream(
@@ -112,7 +90,6 @@ class GroqProvider(LLMProvider):
         tools: list[dict] | None = None,
         temperature: float = 0.2,
     ):
-        """Stream tokens and accumulate any tool calls from the delta stream."""
         kwargs: dict = {
             "model": self._model,
             "messages": messages,
@@ -124,13 +101,8 @@ class GroqProvider(LLMProvider):
             kwargs["tool_choice"] = "auto"
 
         content_parts: list[str] = []
-        # index -> {"id": str|None, "name": str|None, "args": str}
         tc_acc: dict[int, dict] = {}
 
-        # Groq's tool-call parser is stochastic and sometimes emits a malformed
-        # call (wrong types / invalid enum) that it then rejects with a 400.
-        # These errors surface at request time (before any token streams), so a
-        # couple of retries are safe; after that, drop tools for a text answer.
         for attempt in range(3):
             content_parts = []
             tc_acc = {}
@@ -139,7 +111,7 @@ class GroqProvider(LLMProvider):
                 stream = await self.client.chat.completions.create(**kwargs)
                 async for chunk in stream:
                     if not chunk.choices:
-                        continue  # usage-only trailing chunk
+                        continue
                     delta = chunk.choices[0].delta
                     if delta.content:
                         content_parts.append(delta.content)
@@ -155,17 +127,16 @@ class GroqProvider(LLMProvider):
                             slot["name"] = tcd.function.name
                         if tcd.function and tcd.function.arguments:
                             slot["args"] += tcd.function.arguments
-                break  # stream consumed successfully
+                break
             except BadRequestError as exc:
-                if _is_tool_use_failure(exc) and not streamed_any and attempt < 2:
-                    continue  # retry the whole turn
-                if _is_tool_use_failure(exc) and not streamed_any:
-                    # Retries exhausted — answer without tools.
-                    fallback = {
-                        k: v
-                        for k, v in kwargs.items()
-                        if k not in ("tools", "tool_choice", "stream")
-                    }
+                msg = str(exc).lower()
+                is_tool_err = (
+                    "tool" in msg and ("validation" in msg or "schema" in msg or "failed" in msg)
+                )
+                if is_tool_err and not streamed_any and attempt < 2:
+                    continue
+                if is_tool_err and not streamed_any:
+                    fallback = {k: v for k, v in kwargs.items() if k not in ("tools", "tool_choice", "stream")}
                     resp = await self.client.chat.completions.create(**fallback)
                     text = resp.choices[0].message.content or ""
                     if text:
@@ -174,7 +145,7 @@ class GroqProvider(LLMProvider):
                     return
                 raise
 
-        LLM_REQUESTS_TOTAL.labels(provider="groq").inc()
+        LLM_REQUESTS_TOTAL.labels(provider="openrouter").inc()
 
         tool_calls: list[ToolCall] = []
         for idx in sorted(tc_acc):

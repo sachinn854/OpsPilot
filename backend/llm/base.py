@@ -6,6 +6,7 @@ keeps the provider swappable (Groq today, OpenAI/Anthropic/Ollama tomorrow) with
 a one-line change.
 """
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -45,3 +46,27 @@ class LLMProvider(ABC):
         list of tool JSON schemas the model may call.
         """
         ...
+
+    async def chat_stream(
+        self,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        temperature: float = 0.2,
+    ) -> AsyncIterator[dict]:
+        """Stream a chat completion.
+
+        Yields event dicts:
+          {"type": "token", "text": str}                  — a content delta
+          {"type": "done", "content": str, "tool_calls": [ToolCall]}  — final
+
+        Default implementation has no real streaming: it calls `chat()` and emits
+        the whole answer as a single token. Providers override for true streaming.
+        """
+        resp = await self.chat(messages, tools=tools, temperature=temperature)
+        if resp.content:
+            yield {"type": "token", "text": resp.content}
+        yield {
+            "type": "done",
+            "content": resp.content or "",
+            "tool_calls": resp.tool_calls,
+        }

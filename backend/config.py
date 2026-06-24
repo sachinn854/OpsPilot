@@ -6,10 +6,11 @@ hardcoded — secrets live only in the environment. Import the singleton `settin
 anywhere in the app:
 
     from backend.config import settings
-    print(settings.GROQ_MODEL)
+    print(settings.OPENROUTER_MODEL)
 """
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,9 +21,15 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     LOG_LEVEL: str = "info"
 
-    # --- Groq (LLM) ---
-    GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    # --- OpenRouter (LLM) ---
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "anthropic/claude-haiku-4-5"
+
+    # --- API authentication ---
+    # Set a strong random string. When set, all requests must carry:
+    #   Authorization: Bearer <API_KEY>
+    # Leave empty in development to skip validation.
+    API_KEY: str = ""
 
     # --- GitHub tool ---
     GITHUB_TOKEN: str = ""
@@ -50,8 +57,15 @@ class Settings(BaseSettings):
     RAG_RERANK: bool = False
 
     # --- Multi-agent runs ---
-    CRITIC_CONFIDENCE_THRESHOLD: float = 0.7  # below this → retry the loop
-    RUN_MAX_RETRIES: int = 2                   # max Critic-driven retries per run
+    CRITIC_CONFIDENCE_THRESHOLD: float = 0.7
+    RUN_MAX_RETRIES: int = 2
+
+    @field_validator("CRITIC_CONFIDENCE_THRESHOLD")
+    @classmethod
+    def _clamp_threshold(cls, v: float) -> float:
+        if not (0.0 <= v <= 1.0):
+            raise ValueError("CRITIC_CONFIDENCE_THRESHOLD must be between 0.0 and 1.0")
+        return v
 
     # --- Rate limiting (slowapi, per-IP) ---
     RATE_LIMIT_CHAT: str = "30/minute"
