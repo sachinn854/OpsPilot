@@ -1,7 +1,7 @@
 const BASE = '/v1'
 const TIMEOUT_MS = 30_000
 
-async function apiFetch(url, opts = {}) {
+export async function apiFetch(url, opts = {}) {
   const signal = AbortSignal.timeout(TIMEOUT_MS)
   const res = await fetch(url, { ...opts, signal })
   if (!res.ok) {
@@ -61,6 +61,30 @@ export async function askDocument(question, top_k) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, top_k }),
   })
+}
+
+// ── Integrations ─────────────────────────────────────────
+export async function fetchIntegrations() {
+  return apiFetch(`${BASE}/integrations`)
+}
+
+export async function connectIntegration(service, token, role = 'operator') {
+  return apiFetch(`${BASE}/integrations/${service}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-User-Role': role },
+    body: JSON.stringify({ token }),
+  })
+}
+
+export async function disconnectIntegration(service, role = 'operator') {
+  return apiFetch(`${BASE}/integrations/${service}`, {
+    method: 'DELETE',
+    headers: { 'X-User-Role': role },
+  })
+}
+
+export async function verifyIntegration(service) {
+  return apiFetch(`${BASE}/integrations/${service}/verify`)
 }
 
 // ── Chat ─────────────────────────────────────────────────

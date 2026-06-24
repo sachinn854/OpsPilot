@@ -20,6 +20,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -191,4 +192,30 @@ class Approval(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+
+# ---------------------------------------------------------------------------
+# Integration tokens.
+#
+# Each org can connect external services (GitHub, Slack, Jira, etc.) by storing
+# an encrypted token here. Tools fetch the token for the current org instead of
+# reading from .env, enabling per-user/per-org credentials.
+# ---------------------------------------------------------------------------
+class IntegrationToken(Base):
+    __tablename__ = "integration_tokens"
+    __table_args__ = (
+        UniqueConstraint("org_id", "service", name="uq_integration_org_service"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    service: Mapped[str] = mapped_column(String(64))   # github | slack | jira | linear
+    token_encrypted: Mapped[str] = mapped_column(Text)  # Fernet-encrypted token
+    meta: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON (username, workspace, etc.)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )

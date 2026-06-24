@@ -6,6 +6,7 @@ import NewRun from './components/NewRun'
 import ToolsPanel from './components/ToolsPanel'
 import Documents from './components/Documents'
 import Chat from './components/Chat'
+import Settings from './components/Settings'
 import './App.css'
 
 const NAV = [
@@ -15,6 +16,7 @@ const NAV = [
   { id: 'approvals', icon: '◈', label: 'Approvals', group: 'Agent Runs' },
   { id: 'documents', icon: '⊡', label: 'Documents', group: 'Knowledge' },
   { id: 'tools',     icon: '⊙', label: 'Tools',     group: 'System'    },
+  { id: 'settings',  icon: '⚙', label: 'Settings',  group: 'System'    },
 ]
 
 export default function App() {
@@ -91,6 +93,7 @@ export default function App() {
         {page === 'approvals' && <ApprovalPanel />}
         {page === 'documents' && <Documents />}
         {page === 'tools'     && <ToolsPanel />}
+        {page === 'settings'  && <Settings />}
       </main>
     </div>
   )

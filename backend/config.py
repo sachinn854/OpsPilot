@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # --- GitHub tool ---
     GITHUB_TOKEN: str = ""
 
+    # --- Integration token encryption ---
+    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    ENCRYPTION_KEY: str = ""
+
     # --- PostgreSQL ---
     DATABASE_URL: str = "postgresql+asyncpg://copilot:copilot_pass@localhost:5432/copilot"
 

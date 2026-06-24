@@ -43,28 +43,41 @@ def _validate_repo(repo: str) -> ToolResult | None:
     return None
 
 
-def _headers() -> dict:
+def _headers(token: str | None = None) -> dict:
+    """Build GitHub API headers. Uses provided token, falls back to .env GITHUB_TOKEN."""
     headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
-    if settings.GITHUB_TOKEN:
-        headers["Authorization"] = f"Bearer {settings.GITHUB_TOKEN}"
+    tok = token or settings.GITHUB_TOKEN
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
     return headers
 
 
-async def _get(url: str, params: dict | None = None) -> tuple[int, any]:
+async def _get_org_token(org_id: str = "default") -> str | None:
+    """Fetch GitHub token for this org from DB. Falls back to None (caller uses .env)."""
+    try:
+        from backend.db.session import AsyncSessionLocal
+        from backend.integrations.store import get_token
+        async with AsyncSessionLocal() as session:
+            return await get_token(session, org_id=org_id, service="github")
+    except Exception:
+        return None
+
+
+async def _get(url: str, params: dict | None = None, token: str | None = None) -> tuple[int, any]:
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.get(url, headers=_headers(), params=params or {})
+        resp = await client.get(url, headers=_headers(token), params=params or {})
     return resp.status_code, resp
 
 
-async def _post(url: str, body: dict) -> tuple[int, any]:
+async def _post(url: str, body: dict, token: str | None = None) -> tuple[int, any]:
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.post(url, headers=_headers(), json=body)
+        resp = await client.post(url, headers=_headers(token), json=body)
     return resp.status_code, resp
 
 
-async def _patch(url: str, body: dict) -> tuple[int, any]:
+async def _patch(url: str, body: dict, token: str | None = None) -> tuple[int, any]:
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.patch(url, headers=_headers(), json=body)
+        resp = await client.patch(url, headers=_headers(token), json=body)
     return resp.status_code, resp
 
 
