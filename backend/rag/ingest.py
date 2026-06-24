@@ -79,6 +79,16 @@ async def ingest_text(
             )
         )
 
-    await upsert_points(points)
+    # Commit Postgres first so doc.id and all point_ids are durable.
+    # Then upsert to Qdrant. If Qdrant fails, the user can re-ingest;
+    # the DB rows are already clean (no orphaned vectors in the other direction).
     await session.commit()
+    try:
+        await upsert_points(points)
+    except Exception as exc:
+        # Qdrant failed after Postgres committed — delete the DB rows so the
+        # document doesn't appear in listings without any searchable vectors.
+        await session.delete(doc)
+        await session.commit()
+        raise RuntimeError(f"Vector store upsert failed: {exc}") from exc
     return doc

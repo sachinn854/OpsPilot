@@ -39,7 +39,7 @@ class RagSearchTool(Tool):
                 {
                     "source": c.source,
                     "score": round(c.score, 4),
-                    "text": c.text,
+                    "text": c.text[:2000],  # cap per-chunk to keep total context manageable
                 }
                 for c in chunks
             ]

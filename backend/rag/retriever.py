@@ -36,10 +36,14 @@ async def retrieve(
     dense = await embed_query(query)
 
     if settings.RAG_HYBRID:
-        sparse = await embed_sparse_query(query)
-        points = await hybrid_search(
-            dense, sparse.indices, sparse.values, k, org_id
-        )
+        try:
+            sparse = await embed_sparse_query(query)
+            points = await hybrid_search(
+                dense, sparse.indices, sparse.values, k, org_id
+            )
+        except Exception:
+            # Fallback to dense-only if hybrid/sparse fails (e.g. collection pre-dates BM25).
+            points = await search(dense, k, org_id)
     else:
         points = await search(dense, k, org_id)
 

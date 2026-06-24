@@ -13,10 +13,17 @@ def extract_text(filename: str, raw: bytes) -> str:
 
     if name.endswith(".pdf"):
         from pypdf import PdfReader
+        from pypdf.errors import PdfReadError
 
-        reader = PdfReader(io.BytesIO(raw))
-        pages = [page.extract_text() or "" for page in reader.pages]
-        return "\n\n".join(pages).strip()
+        try:
+            reader = PdfReader(io.BytesIO(raw))
+            pages = [page.extract_text() or "" for page in reader.pages]
+            text = "\n\n".join(pages).strip()
+        except PdfReadError as exc:
+            raise ValueError(f"Could not read PDF '{filename}': {exc}") from exc
+        if not text:
+            raise ValueError(f"PDF '{filename}' contains no extractable text (scanned/image PDF?).")
+        return text
 
     if name.endswith((".txt", ".md", ".markdown", ".text", "")) or not name:
         # Best-effort decode for text-like files.

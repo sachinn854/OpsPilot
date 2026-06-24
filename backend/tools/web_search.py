@@ -22,9 +22,8 @@ class WebSearchTool(Tool):
                 "description": "The search query.",
             },
             "max_results": {
-                "type": "integer",
-                "description": "Maximum number of results to return (default 5).",
-                "default": 5,
+                "type": "number",
+                "description": "Maximum number of results to return. Default: 5.",
             },
         },
         "required": ["query"],
@@ -33,20 +32,6 @@ class WebSearchTool(Tool):
     async def run(self, query: str, max_results: int = 5) -> ToolResult:
         # Mocked — no real search API is called.
         return ToolResult(
-            ok=True,
-            data={
-                "query": query,
-                "results": [
-                    {
-                        "title": f"Simulated result {i + 1} for: {query}",
-                        "url": f"https://example.com/result-{i + 1}",
-                        "snippet": (
-                            f"This is a simulated search snippet for '{query}'. "
-                            "Wire a real search API (Brave/Tavily/SerpAPI) to activate."
-                        ),
-                    }
-                    for i in range(min(max_results, 3))
-                ],
-                "note": "simulated (no search API key configured)",
-            },
+            ok=False,
+            error="Web search is not configured. Set a search API key (Brave/Tavily/SerpAPI) to enable this tool.",
         )

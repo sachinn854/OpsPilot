@@ -69,8 +69,8 @@ async def ensure_collection(dim: int) -> None:
 
     await client.create_collection(
         collection_name=name,
-        vectors_config={DENSE: VectorParams(size=dim, distance=Distance.COSINE)},
-        sparse_vectors_config={SPARSE: SparseVectorParams(modifier=Modifier.IDF)},
+        vectors_config={DENSE: VectorParams(size=dim, distance=Distance.COSINE, on_disk=True)},
+        sparse_vectors_config={SPARSE: SparseVectorParams(modifier=Modifier.IDF, index={"on_disk": True})},
     )
 
 
