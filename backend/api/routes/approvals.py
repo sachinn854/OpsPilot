@@ -1,21 +1,19 @@
 """
 Approvals endpoints (human-in-the-loop).
 
-  GET  /v1/approvals             → list pending approvals (runs paused on a
-                                   sensitive action, awaiting a human)
+  GET  /v1/approvals             → list pending approvals
   POST /v1/approvals/{id}        → approve or reject → resumes (or aborts) the run
-
-Approving resumes the paused LangGraph run from the exact node; rejecting lets it
-finish with an "aborted" report. Org scoping stays "default" until auth lands.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.deps import get_orchestrator, limiter
 from backend.config import settings
 from backend.core import hitl
 from backend.core.orchestrator import RunResult
+from backend.db.models import Approval
 from backend.db.session import get_session
 from backend.security.rbac import Role, require_role
 
@@ -35,7 +33,7 @@ class ApprovalInfo(BaseModel):
 
 class DecisionRequest(BaseModel):
     approved: bool
-    decided_by: str = "operator"
+    # decided_by is no longer accepted from the caller — derived server-side.
 
 
 @router.get("", response_model=list[ApprovalInfo])
@@ -66,27 +64,32 @@ async def decide(
     session: AsyncSession = Depends(get_session),
     _role: Role = require_role(Role.operator),
 ) -> RunResult:
-    approval = await hitl.get_approval(session, approval_id, org_id=_ORG)
+    # SELECT FOR UPDATE — prevents two concurrent requests from both passing the
+    # status check and calling resume_run() twice on the same paused run.
+    result = await session.execute(
+        select(Approval)
+        .where(Approval.id == approval_id, Approval.org_id == _ORG)
+        .with_for_update()
+    )
+    approval = result.scalar_one_or_none()
     if approval is None:
         raise HTTPException(status_code=404, detail="approval not found")
     if approval.status != "pending":
-        raise HTTPException(
-            status_code=409, detail=f"approval already {approval.status}"
-        )
+        raise HTTPException(status_code=409, detail=f"approval already {approval.status}")
 
     run = await hitl.get_run(session, approval.run_id, org_id=_ORG)
     if run is None:
         raise HTTPException(status_code=404, detail="run not found")
 
-    # Stamp the decision, then resume (or abort) the paused run.
+    # Server-derived identity — not caller-supplied.
+    decided_by = "api-operator"
+
     await hitl.record_decision(
-        session, approval, approved=req.approved, decided_by=req.decided_by
+        session, approval, approved=req.approved, decided_by=decided_by
     )
     try:
-        return await _orchestrator.resume_run(
-            session, run=run, approved=req.approved
-        )
-    except RuntimeError as exc:  # e.g. missing GROQ_API_KEY
+        return await _orchestrator.resume_run(session, run=run, approved=req.approved)
+    except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    except ValueError as exc:  # structured-output failure
+    except ValueError as exc:
         raise HTTPException(status_code=502, detail=f"Resume failed: {exc}")

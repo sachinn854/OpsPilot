@@ -27,11 +27,20 @@ class ExecuteSQLTool(Tool):
     }
 
     async def run(self, query: str) -> ToolResult:
-        # Mocked — wire a real read-only DB connection when ready.
-        # Production: validate query is SELECT-only, then execute via AsyncSession.
-        q_lower = query.strip().lower()
+        # Validate that this is a single SELECT statement — reject anything else.
+        # The startswith check is easily bypassed; we also reject semicolons to
+        # block stacked queries like "SELECT 1; DROP TABLE users".
+        q_stripped = query.strip()
+        q_lower = q_stripped.lower()
         if not q_lower.startswith("select"):
             return ToolResult(ok=False, error="Only SELECT queries are allowed.")
+        if ";" in q_stripped:
+            return ToolResult(ok=False, error="Multiple statements are not allowed.")
+        # Reject common write keywords anywhere in the query.
+        _WRITE_KW = ("insert", "update", "delete", "drop", "truncate", "alter", "create", "replace")
+        for kw in _WRITE_KW:
+            if kw in q_lower:
+                return ToolResult(ok=False, error=f"Forbidden keyword '{kw}' in query.")
         return ToolResult(
             ok=True,
             data={

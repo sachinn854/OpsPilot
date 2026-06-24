@@ -9,6 +9,7 @@ This is the end-to-end flow: plan, gather, act, self-verify, report.
 Org scoping stays "default" until auth lands.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +26,9 @@ router = APIRouter(prefix="/v1/runs", tags=["runs"])
 
 _ORG = "default"
 _orchestrator = get_orchestrator()
+
+
+_MAX_GOAL_LEN = 2000
 
 
 class RunRequest(BaseModel):
@@ -50,6 +54,8 @@ async def create_run(
 ) -> RunResult:
     if not req.goal.strip():
         raise HTTPException(status_code=400, detail="goal cannot be empty")
+    if len(req.goal) > _MAX_GOAL_LEN:
+        raise HTTPException(status_code=400, detail=f"goal too long (max {_MAX_GOAL_LEN} chars)")
     guard = check_injection(req.goal)
     if not guard.safe:
         raise HTTPException(status_code=400, detail=guard.reason)
@@ -57,18 +63,49 @@ async def create_run(
         return await _orchestrator.run(
             session, goal=req.goal, org_id=_ORG, top_k=req.top_k
         )
-    except RuntimeError as exc:  # e.g. missing GROQ_API_KEY
+    except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except ValueError as exc:  # structured-output failure
         raise HTTPException(status_code=502, detail=f"Run failed: {exc}")
 
 
+@router.post("/stream")
+@limiter.limit(settings.RATE_LIMIT_RUNS)
+async def create_run_stream(
+    request: Request,
+    req: RunRequest,
+    session: AsyncSession = Depends(get_session),
+    _role: Role = require_role(Role.operator),
+) -> StreamingResponse:
+    """Same as POST /v1/runs but streams SSE progress events as each agent node finishes."""
+    if not req.goal.strip():
+        raise HTTPException(status_code=400, detail="goal cannot be empty")
+    guard = check_injection(req.goal)
+    if not guard.safe:
+        raise HTTPException(status_code=400, detail=guard.reason)
+
+    async def event_stream():
+        try:
+            async for chunk in _orchestrator.stream_run(
+                session, goal=req.goal, org_id=_ORG, top_k=req.top_k
+            ):
+                yield chunk
+        except RuntimeError as exc:
+            import json
+            yield f"data: {json.dumps({'event': 'run_failed', 'error': str(exc)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @router.get("", response_model=list[RunInfo])
 async def list_runs(
+    limit: int = 50,
     session: AsyncSession = Depends(get_session),
 ) -> list[RunInfo]:
+    limit = max(1, min(limit, 200))
     result = await session.execute(
-        select(Run).where(Run.org_id == _ORG).order_by(Run.created_at.desc())
+        select(Run).where(Run.org_id == _ORG).order_by(Run.created_at.desc()).limit(limit)
     )
     return [
         RunInfo(
