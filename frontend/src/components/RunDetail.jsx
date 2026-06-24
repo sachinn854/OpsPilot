@@ -1,84 +1,165 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { fetchRun } from '../api'
 
-function AgentSteps({ plan, toolCalls }) {
-  const steps = plan ? JSON.parse(plan) : []
-  return (
-    <div className="steps">
-      {steps.length > 0 && (
-        <div className="step planner">
-          <div className="step-label">Planner</div>
-          {steps.map((s, i) => (
-            <div key={i} style={{ fontSize: '0.85rem', marginBottom: '0.25rem' }}>
-              {i + 1}. [{s.kind}] {s.description}
-            </div>
-          ))}
-        </div>
-      )}
+const NODE_META = {
+  planner:   { icon: '⊕', label: 'Planner',   cls: 'tl-planner'   },
+  research:  { icon: '⊙', label: 'Research',  cls: 'tl-research'  },
+  execution: { icon: '▶', label: 'Execution', cls: 'tl-execution' },
+  critic:    { icon: '◈', label: 'Critic',    cls: 'tl-critic'    },
+  reporting: { icon: '◉', label: 'Report',    cls: 'tl-reporting' },
+  security:  { icon: '⊘', label: 'Security',  cls: 'tl-security'  },
+}
 
-      {toolCalls && toolCalls.length > 0 && (
-        <div className="step execution">
-          <div className="step-label">Execution — Tool Calls ({toolCalls.length})</div>
-          {toolCalls.map((tc, i) => (
-            <div key={i} style={{ fontSize: '0.8rem', marginBottom: '0.35rem', padding: '0.35rem 0.5rem', background: '#1a1d27', borderRadius: 4 }}>
-              <span style={{ color: '#f59e0b', fontWeight: 600 }}>{tc.tool_name}</span>
-              {' '}
-              <span className={tc.ok ? 'badge completed' : 'badge failed'} style={{ fontSize: '0.65rem' }}>
-                {tc.ok ? 'ok' : 'err'}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+function Badge({ status }) {
+  return (
+    <span className={`badge ${status}`}>
+      <span className="bdot" />
+      {status.replace('_', ' ')}
+    </span>
   )
 }
 
+const POLL_INTERVALS = [2000, 4000, 8000, 15000, 30000]  // exponential backoff cap 30s
+const TERMINAL = new Set(['completed', 'failed'])
+
 export default function RunDetail({ runId, onBack }) {
-  const [run, setRun] = useState(null)
+  const [run, setRun]         = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError]     = useState('')
+  const pollRef               = useRef(null)
+  const attemptRef            = useRef(0)
 
   useEffect(() => {
-    fetchRun(runId)
-      .then(setRun)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
+    let cancelled = false
+
+    async function poll() {
+      try {
+        const r = await fetchRun(runId)
+        if (cancelled) return
+        setRun(r)
+        setLoading(false)
+        if (!TERMINAL.has(r.status)) {
+          const delay = POLL_INTERVALS[Math.min(attemptRef.current, POLL_INTERVALS.length - 1)]
+          attemptRef.current += 1
+          pollRef.current = setTimeout(poll, delay)
+        }
+      } catch (e) {
+        if (!cancelled) setError(e.message)
+        setLoading(false)
+      }
+    }
+
+    poll()
+    return () => {
+      cancelled = true
+      clearTimeout(pollRef.current)
+    }
   }, [runId])
 
-  if (loading) return <p className="muted">Loading…</p>
-  if (error)   return <p className="error">{error}</p>
-  if (!run)    return null
+  if (loading) return (
+    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', color:'var(--text3)', marginTop:'3rem' }}>
+      <div className="spinner" /> Loading run…
+    </div>
+  )
+  if (error)  return <div className="error">{error}</div>
+  if (!run)   return null
+
+  const planSteps = (() => { try { return JSON.parse(run.plan || '[]') } catch { return [] } })()
 
   return (
     <div>
-      <span className="back" onClick={onBack}>← Back to runs</span>
-      <div className="row" style={{ marginBottom: '1rem' }}>
-        <h1 style={{ marginBottom: 0 }}>Run</h1>
-        <span className={`badge ${run.status}`}>{run.status}</span>
+      <button className="back-btn" onClick={onBack}>← Back to runs</button>
+
+      <div className="page-header">
+        <div className="row" style={{ marginBottom:'0.5rem' }}>
+          <Badge status={run.status} />
+          <span className="mono muted" style={{ fontSize:'0.7rem' }}>{run.id}</span>
+        </div>
+        <div className="page-title" style={{ fontSize:'1.1rem', lineHeight:1.45 }}>{run.goal}</div>
+      </div>
+
+      <div className="stats-row">
         {run.confidence != null && (
-          <span className="muted">confidence: {run.confidence.toFixed(2)}</span>
+          <div className="stat-chip">
+            Confidence&nbsp;
+            <strong style={{ color: run.confidence >= 0.7 ? 'var(--green)' : 'var(--yellow)' }}>
+              {run.confidence.toFixed(2)}
+            </strong>
+          </div>
         )}
-        <span className="muted">attempts: {run.attempts}</span>
+        <div className="stat-chip">Attempts <strong>{run.attempts}</strong></div>
+        {planSteps.length > 0 && <div className="stat-chip">Steps <strong>{planSteps.length}</strong></div>}
+        {run.tool_calls?.length > 0 && <div className="stat-chip">Tool calls <strong>{run.tool_calls.length}</strong></div>}
       </div>
 
-      <div className="card no-hover">
-        <div className="step-label">Goal</div>
-        <p style={{ fontSize: '0.9rem', marginTop: '0.35rem' }}>{run.goal}</p>
-      </div>
+      {planSteps.length > 0 && (
+        <>
+          <div className="section-label">Pipeline</div>
+          <div className="timeline">
+            {Object.entries(NODE_META).map(([key, meta]) => {
+              if (key === 'security')  return null
+              if (key === 'planner'   && !planSteps.length) return null
+              if (key === 'execution' && !run.tool_calls?.length) return null
+              if (key === 'critic'    && run.confidence == null) return null
+              if (key === 'reporting' && !run.report) return null
 
-      <h2>Agent Steps</h2>
-      <AgentSteps plan={run.plan} toolCalls={run.tool_calls} />
+              return (
+                <div key={key} className={`tl-item ${meta.cls}`}>
+                  <div className="tl-vline" />
+                  <div className="tl-icon">{meta.icon}</div>
+                  <div className="tl-body">
+                    <div className="tl-label">{meta.label}</div>
+
+                    {key === 'planner' && (
+                      <div className="plan-steps">
+                        {planSteps.map((s, i) => (
+                          <div key={i} className="plan-step">
+                            <span className="plan-num">{i + 1}</span>
+                            <span className={`plan-kind ${s.kind}`}>{s.kind}</span>
+                            <span>{s.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {key === 'execution' && run.tool_calls?.map((tc, i) => (
+                      <div key={i} className="tool-call">
+                        <span className={`tc-status ${tc.ok ? 'ok' : 'err'}`}>
+                          {tc.ok ? '✓' : '✗'}
+                        </span>
+                        <span className="tc-name">{tc.tool_name}</span>
+                      </div>
+                    ))}
+
+                    {key === 'critic' && run.confidence != null && (
+                      <div className="tl-detail">
+                        Score&nbsp;
+                        <strong style={{ color: run.confidence >= 0.7 ? 'var(--green)' : 'var(--yellow)' }}>
+                          {run.confidence.toFixed(2)}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       {run.report && (
         <>
-          <h2 style={{ marginTop: '1.25rem' }}>Report</h2>
-          <div className="report-block">{run.report}</div>
+          <div className="section-label">Report</div>
+          <div className="report-block md">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{run.report}</ReactMarkdown>
+          </div>
         </>
       )}
 
       {run.error && (
-        <p className="error" style={{ marginTop: '1rem' }}>Error: {run.error}</p>
+        <div className="error" style={{ marginTop:'1rem' }}>{run.error}</div>
       )}
     </div>
   )

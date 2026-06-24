@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react'
 import { fetchRuns } from '../api'
 
+function Badge({ status }) {
+  return (
+    <span className={`badge ${status}`}>
+      <span className="bdot" />
+      {status.replace('_', ' ')}
+    </span>
+  )
+}
+
 export default function RunList({ onSelect }) {
-  const [runs, setRuns] = useState([])
+  const [runs, setRuns]       = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError]     = useState('')
 
   useEffect(() => {
     fetchRuns()
@@ -13,27 +22,49 @@ export default function RunList({ onSelect }) {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p className="muted">Loading runs…</p>
-  if (error)   return <p className="error">{error}</p>
-  if (!runs.length) return (
-    <div>
-      <h1>Runs</h1>
-      <p className="muted">No runs yet. Create one from "New Run".</p>
+  if (loading) return (
+    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', color:'var(--text3)', marginTop:'2rem' }}>
+      <div className="spinner" /> Loading runs…
     </div>
   )
 
   return (
     <div>
-      <h1>Runs</h1>
-      {runs.map(run => (
-        <div key={run.id} className="card" onClick={() => onSelect(run.id)}>
-          <div className="row">
-            <span className={`badge ${run.status}`}>{run.status}</span>
-            <span className="muted" style={{ fontSize: '0.75rem' }}>
-              conf: {run.confidence != null ? run.confidence.toFixed(2) : '—'} &nbsp;|&nbsp; attempts: {run.attempts}
-            </span>
+      <div className="page-header">
+        <div className="page-title">Runs</div>
+        <div className="page-subtitle">{runs.length} total run{runs.length !== 1 ? 's' : ''}</div>
+      </div>
+
+      {error && <div className="error">{error}</div>}
+
+      {!runs.length && !error && (
+        <div className="empty">
+          <div className="empty-icon">▷</div>
+          <div className="empty-text">No runs yet — start one from New Run</div>
+        </div>
+      )}
+
+      {runs.map(r => (
+        <div key={r.id} className="card" onClick={() => onSelect(r.id)}>
+          <div className="run-header">
+            <Badge status={r.status} />
+            {r.confidence != null && (
+              <span className="muted">
+                conf&nbsp;
+                <strong style={{ color: r.confidence >= 0.7 ? 'var(--green)' : 'var(--yellow)' }}>
+                  {r.confidence.toFixed(2)}
+                </strong>
+              </span>
+            )}
+            <span className="spacer" />
+            <span className="muted mono" style={{ fontSize:'0.7rem' }}>{r.id.slice(0, 8)}</span>
           </div>
-          <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>{run.goal}</p>
+          <div className="run-goal">{r.goal}</div>
+          <div className="run-meta">
+            <span>{r.attempts} attempt{r.attempts !== 1 ? 's' : ''}</span>
+            <span>·</span>
+            <span className="mono" style={{ fontSize:'0.72rem' }}>{new Date(r.created_at).toLocaleString()}</span>
+          </div>
         </div>
       ))}
     </div>

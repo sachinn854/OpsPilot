@@ -3,9 +3,9 @@ import { fetchApprovals, decide } from '../api'
 
 export default function ApprovalPanel() {
   const [approvals, setApprovals] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(null) // approval id being decided
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState('')
+  const [busy, setBusy]           = useState(null)
 
   function load() {
     setLoading(true)
@@ -17,45 +17,63 @@ export default function ApprovalPanel() {
 
   useEffect(() => { load() }, [])
 
-  async function handleDecide(id, approved) {
+  async function handleDecide(id, approved, action) {
+    const verb = approved ? 'approve' : 'reject'
+    if (!window.confirm(`Are you sure you want to ${verb} "${action}"?`)) return
     setBusy(id)
-    try {
-      await decide(id, approved)
-      load()
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setBusy(null)
-    }
+    try { await decide(id, approved); load() }
+    catch (e) { setError(e.message) }
+    finally { setBusy(null) }
   }
-
-  if (loading) return <p className="muted">Loading…</p>
-  if (error)   return <p className="error">{error}</p>
 
   return (
     <div>
-      <h1>Pending Approvals</h1>
-      {!approvals.length && <p className="muted">No pending approvals.</p>}
+      <div className="page-header">
+        <div className="page-title">Approvals</div>
+        <div className="page-subtitle">Sensitive actions awaiting human review</div>
+      </div>
+
+      {loading && (
+        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', color:'var(--text3)' }}>
+          <div className="spinner" /> Loading…
+        </div>
+      )}
+
+      {error && <div className="error">{error}</div>}
+
+      {!loading && !approvals.length && (
+        <div className="empty">
+          <div className="empty-icon">◎</div>
+          <div className="empty-text">No pending approvals</div>
+        </div>
+      )}
+
       {approvals.map(a => (
-        <div key={a.id} className="card no-hover">
-          <div className="row">
-            <span className={`badge ${a.status}`}>{a.status}</span>
-            <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{a.action}</span>
+        <div key={a.id} className="approval-card">
+          <div className="row" style={{ marginBottom:'0.5rem' }}>
+            <span className={`badge ${a.status}`}>
+              <span className="bdot" />{a.status}
+            </span>
           </div>
-          {a.reason && <p className="muted" style={{ marginTop: '0.4rem', fontSize: '0.85rem' }}>{a.reason}</p>}
-          <p className="muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Run: {a.run_id}</p>
+          <div className="approval-action">{a.action}</div>
+          {a.reason && <div className="approval-reason">{a.reason}</div>}
+          <div className="approval-id">run · {a.run_id}</div>
+
           {a.status === 'pending' && (
-            <div className="row" style={{ marginTop: '0.75rem' }}>
+            <div className="approval-btns">
               <button
                 className="btn btn-success"
                 disabled={busy === a.id}
-                onClick={() => handleDecide(a.id, true)}
-              >Approve</button>
-              <button
-                className="btn btn-danger"
-                disabled={busy === a.id}
-                onClick={() => handleDecide(a.id, false)}
-              >Reject</button>
+                onClick={() => handleDecide(a.id, true, a.action)}
+              >
+                {busy === a.id
+                  ? <><div className="spinner" style={{ borderTopColor:'#fff', width:13, height:13 }} /> Working…</>
+                  : '✓ Approve'}
+              </button>
+              <button className="btn btn-danger" disabled={busy === a.id} onClick={() => handleDecide(a.id, false, a.action)}>
+                ✕ Reject
+              </button>
+              <button className="btn btn-ghost" onClick={load}>↻ Refresh</button>
             </div>
           )}
         </div>

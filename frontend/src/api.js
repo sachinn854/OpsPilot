@@ -1,45 +1,73 @@
 const BASE = '/v1'
+const TIMEOUT_MS = 30_000
+
+async function apiFetch(url, opts = {}) {
+  const signal = AbortSignal.timeout(TIMEOUT_MS)
+  const res = await fetch(url, { ...opts, signal })
+  if (!res.ok) {
+    let detail
+    try { detail = (await res.json()).detail } catch { detail = res.statusText }
+    throw new Error(detail || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
 
 export async function fetchRuns() {
-  const r = await fetch(`${BASE}/runs`)
-  if (!r.ok) throw new Error(await r.text())
-  return r.json()
+  return apiFetch(`${BASE}/runs`)
 }
 
 export async function fetchRun(id) {
-  const r = await fetch(`${BASE}/runs/${id}`)
-  if (!r.ok) throw new Error(await r.text())
-  return r.json()
+  return apiFetch(`${BASE}/runs/${id}`)
 }
 
 export async function createRun(goal, role = 'operator') {
-  const r = await fetch(`${BASE}/runs`, {
+  return apiFetch(`${BASE}/runs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-User-Role': role },
     body: JSON.stringify({ goal }),
   })
-  if (!r.ok) throw new Error(await r.text())
-  return r.json()
 }
 
 export async function fetchApprovals() {
-  const r = await fetch(`${BASE}/approvals`)
-  if (!r.ok) throw new Error(await r.text())
-  return r.json()
+  return apiFetch(`${BASE}/approvals`)
 }
 
 export async function decide(approvalId, approved, role = 'operator') {
-  const r = await fetch(`${BASE}/approvals/${approvalId}`, {
+  return apiFetch(`${BASE}/approvals/${approvalId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-User-Role': role },
-    body: JSON.stringify({ approved, decided_by: 'ui-user' }),
+    body: JSON.stringify({ approved }),
   })
-  if (!r.ok) throw new Error(await r.text())
-  return r.json()
 }
 
 export async function fetchMcpTools() {
-  const r = await fetch(`${BASE}/mcp/tools`)
-  if (!r.ok) throw new Error(await r.text())
-  return r.json()
+  return apiFetch(`${BASE}/mcp/tools`)
+}
+
+// ── Documents ────────────────────────────────────────────
+export async function uploadDocument(file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return apiFetch(`${BASE}/documents`, { method: 'POST', body: fd })
+}
+
+export async function fetchDocuments() {
+  return apiFetch(`${BASE}/documents`)
+}
+
+export async function askDocument(question, top_k) {
+  return apiFetch(`${BASE}/documents/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, top_k }),
+  })
+}
+
+// ── Chat ─────────────────────────────────────────────────
+export async function sendChat(message, conversation_id = null) {
+  return apiFetch(`${BASE}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, conversation_id }),
+  })
 }

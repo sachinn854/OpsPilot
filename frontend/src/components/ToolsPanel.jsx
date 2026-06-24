@@ -2,18 +2,18 @@ import { useEffect, useState } from 'react'
 import { fetchMcpTools } from '../api'
 
 const SERVER_COLORS = {
-  github:     '#818cf8',
-  ops:        '#f87171',
-  rag:        '#22d3ee',
-  slack:      '#34d399',
-  search:     '#f59e0b',
-  monitoring: '#a78bfa',
+  github:     '#2563eb',
+  ops:        '#dc2626',
+  rag:        '#0891b2',
+  slack:      '#059669',
+  search:     '#d97706',
+  monitoring: '#7c3aed',
 }
 
 export default function ToolsPanel() {
-  const [tools, setTools] = useState([])
+  const [tools, setTools]     = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError]     = useState('')
 
   useEffect(() => {
     fetchMcpTools()
@@ -22,34 +22,55 @@ export default function ToolsPanel() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p className="muted">Loading…</p>
-  if (error)   return <p className="error">{error}</p>
-
   const servers = [...new Set(tools.map(t => t.server))]
 
   return (
     <div>
-      <h1>Registered Tools ({tools.length})</h1>
-      {servers.map(server => (
-        <div key={server} style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ color: SERVER_COLORS[server] || '#818cf8', marginBottom: '0.75rem' }}>
-            {server}
-          </h2>
-          <div className="tools-grid">
-            {tools.filter(t => t.server === server).map(t => (
-              <div key={t.name} className="card no-hover">
-                <div className="row">
-                  <strong style={{ fontSize: '0.875rem' }}>{t.name}</strong>
-                  {t.sensitive && (
-                    <span className="badge awaiting_approval" style={{ fontSize: '0.65rem' }}>sensitive</span>
-                  )}
-                </div>
-                <p className="muted" style={{ marginTop: '0.35rem', fontSize: '0.8rem' }}>{t.description}</p>
-              </div>
-            ))}
-          </div>
+      <div className="page-header">
+        <div className="page-title">Tool Registry</div>
+        <div className="page-subtitle">{tools.length} tools · {servers.length} servers</div>
+      </div>
+
+      {loading && (
+        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', color:'var(--text3)' }}>
+          <div className="spinner" /> Loading…
         </div>
-      ))}
+      )}
+
+      {error && <div className="error">{error}</div>}
+
+      {servers.map(server => {
+        const color  = SERVER_COLORS[server] || 'var(--text2)'
+        const sTools = tools.filter(t => t.server === server)
+        return (
+          <div key={server} style={{ marginBottom:'2rem' }}>
+            <div className="server-header">
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: color, flexShrink: 0,
+                display: 'inline-block',
+              }} />
+              <span style={{ color }}>{server}</span>
+              <span>{sTools.length} tool{sTools.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="tools-grid">
+              {sTools.map(t => (
+                <div key={t.name} className="tool-card">
+                  <div className="row" style={{ marginBottom:'0.35rem' }}>
+                    <div className="tool-card-name">{t.name}</div>
+                    {t.sensitive && (
+                      <span className="badge awaiting_approval" style={{ fontSize:'0.62rem' }}>
+                        <span className="bdot" />sensitive
+                      </span>
+                    )}
+                  </div>
+                  <div className="tool-card-desc">{t.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
