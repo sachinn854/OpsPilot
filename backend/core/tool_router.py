@@ -42,16 +42,52 @@ def build_default_router() -> "ToolRouter":
     Kept in one place so every entrypoint exposes the same tools. As tools move
     to MCP, only this factory changes.
     """
-    from backend.tools.github import GitHubCommitsTool, GitHubIssuesTool, GitHubPRsTool
+    from backend.tools.github import (
+        GitHubBranchesTool,
+        GitHubCloseIssueTool,
+        GitHubCommentOnIssueTool,
+        GitHubCommentOnPRTool,
+        GitHubCommitsTool,
+        GitHubContributorsTool,
+        GitHubCreateIssueTool,
+        GitHubFileContentTool,
+        GitHubFileTreeTool,
+        GitHubIssuesTool,
+        GitHubPRsTool,
+        GitHubReadmeTool,
+        GitHubReleasesTool,
+        GitHubRepoInfoTool,
+        GitHubRepoLanguagesTool,
+        GitHubSearchCodeTool,
+        GitHubUserReposTool,
+    )
     from backend.tools.ops import RestartServiceTool, RollbackDeploymentTool
     from backend.tools.rag import RagSearchTool
 
     return ToolRouter(
         [
+            # GitHub read tools
+            GitHubRepoInfoTool(),
+            GitHubReadmeTool(),
+            GitHubFileTreeTool(),
+            GitHubFileContentTool(),
+            GitHubReleasesTool(),
+            GitHubContributorsTool(),
+            GitHubBranchesTool(),
+            GitHubSearchCodeTool(),
+            GitHubUserReposTool(),
+            GitHubRepoLanguagesTool(),
             GitHubIssuesTool(),
-            GitHubCommitsTool(),
             GitHubPRsTool(),
+            GitHubCommitsTool(),
+            # GitHub write tools (sensitive — HITL)
+            GitHubCreateIssueTool(),
+            GitHubCommentOnIssueTool(),
+            GitHubCommentOnPRTool(),
+            GitHubCloseIssueTool(),
+            # RAG
             RagSearchTool(),
+            # Ops (sensitive — HITL)
             RollbackDeploymentTool(),
             RestartServiceTool(),
         ]
