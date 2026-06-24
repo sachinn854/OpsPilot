@@ -47,8 +47,12 @@ class SecurityAgent(BaseAgent):
         """Classify the goal/plan as sensitive or safe."""
         # Deterministic backstop: a known sensitive tool named in the plan/goal.
         haystack = f"{goal}\n{plan_text}".lower()
+        # Skip generic service-name prefixes (github, slack, jira) when extracting
+        # the action verb — otherwise every GitHub goal would match "github".
+        _SKIP_PREFIXES = {"github", "slack", "jira", "linear", "ops", "monitoring"}
         for tool in self.sensitive_tools:
-            verb = tool.split("_")[0]  # e.g. "rollback_deployment" -> "rollback"
+            parts = tool.split("_")
+            verb = parts[0] if parts[0] not in _SKIP_PREFIXES else (parts[1] if len(parts) > 1 else parts[0])
             if tool in haystack or verb in haystack:
                 return SecurityVerdict(
                     sensitive=True,
