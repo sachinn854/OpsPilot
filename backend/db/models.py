@@ -123,8 +123,8 @@ class Run(Base):
     org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
     goal: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(
-        String(20), default="running"
-    )  # running | completed | failed
+        String(20), default="running", index=True
+    )  # running | completed | failed | awaiting_approval
     plan: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
     report: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)

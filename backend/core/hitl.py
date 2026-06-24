@@ -59,10 +59,12 @@ async def record_decision(
     decided_by: str,
 ) -> None:
     """Stamp the human's decision onto the approval (does not resume the run)."""
+    was_pending = approval.status == "pending"
     approval.status = "approved" if approved else "rejected"
     approval.decided_by = decided_by
     approval.decided_at = datetime.now(timezone.utc)
-    ACTIVE_APPROVALS.dec()
+    if was_pending:
+        ACTIVE_APPROVALS.dec()
     await session.flush()
 
 

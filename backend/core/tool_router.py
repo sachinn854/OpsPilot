@@ -42,7 +42,7 @@ def build_default_router() -> "ToolRouter":
     Kept in one place so every entrypoint exposes the same tools. As tools move
     to MCP, only this factory changes.
     """
-    from backend.tools.github import GitHubCommitsTool, GitHubIssuesTool
+    from backend.tools.github import GitHubCommitsTool, GitHubIssuesTool, GitHubPRsTool
     from backend.tools.ops import RestartServiceTool, RollbackDeploymentTool
     from backend.tools.rag import RagSearchTool
 
@@ -50,6 +50,7 @@ def build_default_router() -> "ToolRouter":
         [
             GitHubIssuesTool(),
             GitHubCommitsTool(),
+            GitHubPRsTool(),
             RagSearchTool(),
             RollbackDeploymentTool(),
             RestartServiceTool(),

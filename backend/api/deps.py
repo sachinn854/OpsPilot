@@ -16,7 +16,7 @@ from slowapi.util import get_remote_address
 
 from backend.config import settings
 from backend.core.orchestrator import Orchestrator
-from backend.llm.groq_provider import GroqProvider
+from backend.llm.openrouter_provider import OpenRouterProvider
 from backend.mcp.registry import ToolRegistry
 from backend.mcp.servers.github_server import GitHubServer
 from backend.mcp.servers.monitoring_server import MonitoringServer
@@ -52,5 +52,12 @@ def get_registry() -> ToolRegistry:
 
 @lru_cache
 def get_orchestrator() -> Orchestrator:
-    """Orchestrator singleton wired with the registry's active ToolRouter."""
-    return Orchestrator(llm=GroqProvider(), router=get_registry().build_router())
+    """Orchestrator singleton wired with the core tool set.
+
+    Uses build_default_router() (5 focused tools) rather than the full MCP
+    registry (12 tools). Sending 12 verbose tool schemas to Groq's free tier
+    (12 000 TPM) burns ~6 000 tokens before the agent even starts thinking.
+    The MCP registry is used for discovery (GET /v1/mcp/tools) only.
+    """
+    from backend.core.tool_router import build_default_router
+    return Orchestrator(llm=OpenRouterProvider(), router=build_default_router())

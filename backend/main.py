@@ -9,6 +9,7 @@ conversation memory). Tables are created on startup for convenience; Alembic
 migrations replace this in a later phase.
 """
 import logging
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -21,6 +22,11 @@ from backend.api.deps import limiter
 from backend.api.routes import approvals, chat, documents, mcp, runs
 from backend.config import settings
 
+logging.basicConfig(
+    stream=sys.stdout,
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
+    format="%(levelname)s %(name)s %(message)s",
+)
 logger = logging.getLogger("copilot")
 
 

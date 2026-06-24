@@ -7,15 +7,19 @@ including the evidence (sources / tool results) so the answer is traceable.
 """
 from backend.agents.base import BaseAgent
 from backend.llm.base import LLMProvider
+from backend.security.secrets import redact
 
 REPORTING_PROMPT = """You are the Reporting agent in a multi-agent operations copilot.
 
-Write the final answer to the user's goal using only the provided research and
-execution results. Be clear and well-structured:
-- Lead with the direct answer / outcome.
-- Support it with the key evidence (cite sources or tool results).
+Write the final answer to the user's goal using only the provided research and execution results.
+
+Rules:
+- Write in plain English prose only. No JSON, no code blocks, no markdown tables.
+- Lead with the direct answer in one sentence.
+- Then add supporting detail in 2-3 short sentences.
+- Use EXACT names, titles, numbers from the execution output — never paraphrase or invent them.
 - If confidence is low or something is unresolved, say so honestly.
-Do not introduce new facts that aren't in the inputs."""
+- Never invent facts not present in the inputs."""
 
 
 class ReportingAgent(BaseAgent):
@@ -33,13 +37,16 @@ class ReportingAgent(BaseAgent):
     ) -> str:
         """Compose the final report text."""
         src = ", ".join(sources) if sources else "none"
+        # Redact secrets before they reach the LLM or appear in the final report.
+        safe_execution = redact(execution_output)
+        safe_research = redact(research_notes)
         messages = [
             {"role": "system", "content": self.system_prompt},
             {
                 "role": "user",
                 "content": (
-                    f"Goal: {goal}\n\nResearch notes:\n{research_notes}\n\n"
-                    f"Execution output:\n{execution_output}\n\n"
+                    f"Goal: {goal}\n\nResearch notes:\n{safe_research}\n\n"
+                    f"Execution output:\n{safe_execution}\n\n"
                     f"Critic confidence: {confidence:.2f}\nSources: {src}"
                 ),
             },

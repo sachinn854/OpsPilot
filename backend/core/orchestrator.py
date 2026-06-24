@@ -12,6 +12,7 @@ Owns one multi-agent run end to end:
 The graph holds the reasoning; the orchestrator holds the *run* — state, the audit
 trail, pause/resume, and error handling.
 """
+import asyncio
 import json
 import time
 from datetime import datetime, timezone
@@ -54,8 +55,57 @@ class Orchestrator:
         self.llm = llm
         self.router = router
         self.graph = build_graph(llm, router)
+        self._lock = asyncio.Lock()  # guard MemorySaver from concurrent writes
 
     # ----- public API -------------------------------------------------------
+    async def stream_run(
+        self,
+        session: AsyncSession,
+        *,
+        goal: str,
+        org_id: str = "default",
+        top_k: int | None = None,
+    ):
+        """Async generator that yields SSE-formatted strings as each graph node finishes."""
+        run = Run(org_id=org_id, goal=goal, status="running")
+        session.add(run)
+        await session.flush()
+        await session.commit()
+
+        yield _sse({"event": "run_created", "run_id": run.id})
+
+        _start = time.monotonic()
+        config = {"configurable": {"thread_id": run.id}}
+        initial: dict = {"goal": goal, "org_id": org_id, "top_k": top_k, "attempts": 0, "tool_calls": []}
+
+        try:
+            async for chunk in self.graph.astream(initial, config):
+                node_name = next(iter(chunk))
+                updates = chunk[node_name]
+                yield _sse({"event": "node_done", "node": node_name, "detail": _node_detail(node_name, updates)})
+        except Exception as exc:
+            RUN_DURATION.observe(time.monotonic() - _start)
+            run.status = "failed"
+            run.error = str(exc)
+            run.completed_at = datetime.now(timezone.utc)
+            RUNS_TOTAL.labels(status="failed").inc()
+            await session.commit()
+            yield _sse({"event": "run_failed", "error": str(exc)})
+            return
+
+        RUN_DURATION.observe(time.monotonic() - _start)
+
+        payload = await self._interrupt_payload(config)
+        if payload is not None:
+            result = await self._pause(session, run, payload)
+            yield _sse({"event": "run_paused", "run_id": run.id,
+                        "approval_id": result.approval_id, "action": result.pending_action})
+            return
+
+        snapshot = await self.graph.aget_state(config)
+        result = await self._finalize(session, run, snapshot.values)
+        yield _sse({"event": "run_complete", **result.model_dump()})
+
     async def run(
         self,
         session: AsyncSession,
@@ -71,17 +121,24 @@ class Orchestrator:
         _start = time.monotonic()
         config = {"configurable": {"thread_id": run.id}}
         try:
-            final: RunState = await self.graph.ainvoke(
-                {
-                    "goal": goal,
-                    "org_id": org_id,
-                    "top_k": top_k,
-                    "attempts": 0,
-                    "tool_calls": [],
-                },
-                config,
-            )
-        except Exception as exc:  # noqa: BLE001 — record failure, don't crash the API
+            async with self._lock:
+                final: RunState = await asyncio.wait_for(
+                    self.graph.ainvoke(
+                        {
+                            "goal": goal,
+                            "org_id": org_id,
+                            "top_k": top_k,
+                            "attempts": 0,
+                            "tool_calls": [],
+                        },
+                        config,
+                    ),
+                    timeout=300,  # 5 min hard cap — prevents hung LangGraph nodes
+                )
+        except asyncio.TimeoutError:
+            RUN_DURATION.observe(time.monotonic() - _start)
+            return await self._fail(session, run, TimeoutError("Run timed out after 5 minutes."))
+        except Exception as exc:  # noqa: BLE001
             RUN_DURATION.observe(time.monotonic() - _start)
             return await self._fail(session, run, exc)
 
@@ -103,9 +160,10 @@ class Orchestrator:
         config = {"configurable": {"thread_id": run.id}}
         run.status = "running"
         try:
-            final: RunState = await self.graph.ainvoke(
-                Command(resume={"approved": approved}), config
-            )
+            async with self._lock:
+                final: RunState = await self.graph.ainvoke(
+                    Command(resume={"approved": approved}), config
+                )
         except Exception as exc:  # noqa: BLE001
             return await self._fail(session, run, exc)
 
@@ -186,6 +244,8 @@ class Orchestrator:
             )
 
         await session.commit()
+        # Dedup sources preserving order across retry loops.
+        sources = list(dict.fromkeys(final.get("sources", [])))
         return RunResult(
             run_id=run.id,
             status=run.status,
@@ -194,7 +254,7 @@ class Orchestrator:
             confidence=run.confidence or 0.0,
             attempts=run.attempts,
             plan=plan_steps,
-            sources=final.get("sources", []),
+            sources=sources,
             tool_calls=len(tool_calls),
         )
 
@@ -206,4 +266,53 @@ class Orchestrator:
         run.completed_at = datetime.now(timezone.utc)
         RUNS_TOTAL.labels(status="failed").inc()
         await session.commit()
-        raise exc
+        return RunResult(
+            run_id=run.id,
+            status="failed",
+            goal=run.goal,
+            report=str(exc),
+            confidence=0.0,
+            attempts=0,
+            plan=[],
+            sources=[],
+            tool_calls=0,
+        )
+
+
+# ----- module-level helpers (not part of the class) ------------------------
+
+def _sse(data: dict) -> str:
+    return f"data: {json.dumps(data)}\n\n"
+
+
+def _node_detail(node: str, updates: dict) -> str:
+    """Extract a short human-readable summary from a node's state updates."""
+    if node == "planner":
+        plan = updates.get("plan")
+        if plan and hasattr(plan, "steps"):
+            return f"Created {len(plan.steps)} step(s)"
+        return "Plan ready"
+    if node == "research":
+        notes = updates.get("research_notes", "")
+        sources = updates.get("sources", [])
+        return f"Found {len(sources)} source(s)" if sources else f"{len(notes)} chars of notes"
+    if node == "execution":
+        calls = updates.get("tool_calls", [])
+        return f"Called {len(calls)} tool(s)"
+    if node == "critic":
+        verdict = updates.get("verdict")
+        conf = updates.get("confidence")
+        if conf is not None:
+            return f"Confidence {conf:.2f}"
+        if verdict and hasattr(verdict, "confidence"):
+            return f"Confidence {verdict.confidence:.2f}"
+        return "Verdict ready"
+    if node == "reporting":
+        report = updates.get("report", "")
+        return f"Report ready ({len(report)} chars)"
+    if node == "security":
+        sensitive = updates.get("sensitive", False)
+        return "Sensitive — needs approval" if sensitive else "Safe to proceed"
+    if node == "hitl":
+        return "Waiting for human approval"
+    return "Done"
