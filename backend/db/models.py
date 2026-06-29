@@ -202,6 +202,30 @@ class Approval(Base):
 # an encrypted token here. Tools fetch the token for the current org instead of
 # reading from .env, enabling per-user/per-org credentials.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# GitHub / external webhook events.
+#
+# Every inbound webhook is persisted raw before any processing so we have a
+# full audit trail and can replay events. A Celery task picks up the event_id
+# and does the actual work asynchronously.
+# ---------------------------------------------------------------------------
+class WebhookEvent(Base):
+    __tablename__ = "webhook_events"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    source: Mapped[str] = mapped_column(String(32))          # github | slack | ...
+    event_type: Mapped[str] = mapped_column(String(64))      # push | pull_request | issues | release
+    action: Mapped[str | None] = mapped_column(String(64), nullable=True)  # opened | closed | ...
+    delivery_id: Mapped[str | None] = mapped_column(String(128), nullable=True)  # X-GitHub-Delivery
+    payload: Mapped[str] = mapped_column(Text)               # raw JSON
+    processed: Mapped[bool] = mapped_column(Boolean, default=False)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
 class IntegrationToken(Base):
     __tablename__ = "integration_tokens"
     __table_args__ = (

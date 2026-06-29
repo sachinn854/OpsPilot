@@ -33,6 +33,9 @@ class Settings(BaseSettings):
 
     # --- GitHub tool ---
     GITHUB_TOKEN: str = ""
+    # Secret for verifying GitHub webhook signatures (X-Hub-Signature-256).
+    # Generate any strong random string and paste it into the GitHub webhook settings.
+    GITHUB_WEBHOOK_SECRET: str = ""
 
     # --- Integration token encryption ---
     # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"

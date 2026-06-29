@@ -119,6 +119,31 @@ export default function Settings() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 640 }}>
+
+        {/* Webhook info card */}
+        <div className="card static" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+            <span style={{ fontSize: '1.1rem', color: 'var(--accent)' }}>⊛</span>
+            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>GitHub Webhooks</span>
+            <span className="badge" style={{ fontSize: '0.65rem', background: 'var(--surface3)', color: 'var(--text2)' }}>
+              real-time events
+            </span>
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text2)', marginBottom: '0.75rem' }}>
+            Receive live GitHub events (push, pull requests, issues, releases) directly into the copilot.
+          </div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text3)', lineHeight: 1.7 }}>
+            <div style={{ marginBottom: '0.4rem', color: 'var(--text2)', fontWeight: 500 }}>Setup steps:</div>
+            <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
+              <li>Set <code style={{ background: 'var(--surface3)', padding: '0 4px', borderRadius: 3 }}>GITHUB_WEBHOOK_SECRET</code> in your <code style={{ background: 'var(--surface3)', padding: '0 4px', borderRadius: 3 }}>.env</code></li>
+              <li>Go to your GitHub repo → Settings → Webhooks → Add webhook</li>
+              <li>Payload URL: <code style={{ background: 'var(--surface3)', padding: '0 4px', borderRadius: 3 }}>https://&lt;your-domain&gt;/v1/webhooks/github</code></li>
+              <li>Content type: <code style={{ background: 'var(--surface3)', padding: '0 4px', borderRadius: 3 }}>application/json</code> · paste the same secret</li>
+              <li>Select events: push, pull requests, issues, releases</li>
+            </ol>
+          </div>
+        </div>
+
         {SERVICES.map(svc => {
           const isConnected = !!connected[svc.id]
           const meta = connected[svc.id]?.meta || {}

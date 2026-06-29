@@ -19,7 +19,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from backend.api.deps import limiter
-from backend.api.routes import approvals, chat, documents, integrations, mcp, runs
+from backend.api.routes import approvals, chat, documents, integrations, mcp, runs, webhooks
 from backend.config import settings
 
 logging.basicConfig(
@@ -73,6 +73,7 @@ app.include_router(runs.router)
 app.include_router(approvals.router)
 app.include_router(mcp.router)
 app.include_router(integrations.router)
+app.include_router(webhooks.router)
 
 # Prometheus scrape endpoint — Prometheus polls GET /metrics.
 app.mount("/metrics", make_asgi_app())

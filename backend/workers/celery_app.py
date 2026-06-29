@@ -18,7 +18,7 @@ celery_app = Celery(
     "copilot",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["backend.workers.tasks"],
+    include=["backend.workers.tasks", "backend.workers.webhook_handler"],
 )
 
 celery_app.conf.update(
