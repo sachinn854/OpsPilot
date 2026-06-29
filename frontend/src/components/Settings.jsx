@@ -67,6 +67,7 @@ export default function Settings() {
     try {
       const result = await apiFetch(`/v1/integrations/${serviceId}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-Role': 'operator' },
         body: JSON.stringify({ token }),
       })
       setConnected(c => ({ ...c, [serviceId]: result }))

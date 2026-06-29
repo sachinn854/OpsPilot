@@ -33,6 +33,8 @@ class Settings(BaseSettings):
 
     # --- GitHub tool ---
     GITHUB_TOKEN: str = ""
+    # Slack Bot OAuth token (xoxb-...). Can also be set per-org via Settings page.
+    SLACK_TOKEN: str = ""
     # Secret for verifying GitHub webhook signatures (X-Hub-Signature-256).
     # Generate any strong random string and paste it into the GitHub webhook settings.
     GITHUB_WEBHOOK_SECRET: str = ""

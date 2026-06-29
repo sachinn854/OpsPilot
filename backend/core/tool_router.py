@@ -63,6 +63,17 @@ def build_default_router() -> "ToolRouter":
     )
     from backend.tools.ops import RestartServiceTool, RollbackDeploymentTool
     from backend.tools.rag import RagSearchTool
+    from backend.tools.slack import (
+        SlackCreateChannelTool,
+        SlackGetMessagesTool,
+        SlackGetUserInfoTool,
+        SlackListChannelsTool,
+        SlackPostMessageTool,
+        SlackSearchMessagesTool,
+        SlackSendDMTool,
+        SlackSetTopicTool,
+        SlackUploadFileTool,
+    )
 
     return ToolRouter(
         [
@@ -85,6 +96,17 @@ def build_default_router() -> "ToolRouter":
             GitHubCommentOnIssueTool(),
             GitHubCommentOnPRTool(),
             GitHubCloseIssueTool(),
+            # Slack read tools
+            SlackPostMessageTool(),
+            SlackListChannelsTool(),
+            SlackGetMessagesTool(),
+            SlackSendDMTool(),
+            SlackSearchMessagesTool(),
+            SlackGetUserInfoTool(),
+            SlackUploadFileTool(),
+            # Slack write tools (sensitive — HITL)
+            SlackCreateChannelTool(),
+            SlackSetTopicTool(),
             # RAG
             RagSearchTool(),
             # Ops (sensitive — HITL)
