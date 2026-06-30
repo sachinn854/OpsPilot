@@ -1,8 +1,11 @@
 """
 Dynamic system-prompt builder.
 
-Assembles a prompt from the base + only the domain sections
-that match the tools actually registered in the router.
+Two responsibilities:
+1. build_system_prompt(tool_names)  — called once at agent init; decides WHICH
+   sections are available based on registered tools.
+2. build_prompt_for_turn(messages)  — called every turn; scans the last few
+   messages for service keywords and injects only the relevant sections.
 """
 from backend.prompts.base import BASE_PROMPT
 from backend.prompts.sections.github import GITHUB_SECTION
@@ -11,9 +14,9 @@ from backend.prompts.sections.rag import RAG_SECTION
 from backend.prompts.sections.ops import OPS_SECTION
 from backend.prompts.sections.monitoring import MONITORING_SECTION
 
-# Each entry: (trigger_substring, section_text)
-# A section is included when ANY registered tool name contains the trigger.
-_SECTIONS: list[tuple[str, str]] = [
+# ── 1. Tool-presence map ──────────────────────────────────────────────────────
+# Which tool-name substring → which section
+_TOOL_TRIGGERS: list[tuple[str, str]] = [
     ("github",              GITHUB_SECTION),
     ("slack",               SLACK_SECTION),
     ("search_documents",    RAG_SECTION),
@@ -23,19 +26,100 @@ _SECTIONS: list[tuple[str, str]] = [
     ("get_metrics",         MONITORING_SECTION),
 ]
 
+# ── 2. Keyword map ────────────────────────────────────────────────────────────
+# Which user-message keywords → which section
+_KEYWORD_MAP: list[tuple[frozenset[str], str]] = [
+    (frozenset([
+        "github", "repo", "repository", "pull request", "pull requests",
+        "commit", "commits", "branch", "branches", "merge pr", "merge branch",
+        "open issue", "close issue", "create issue", "list issues",
+        "fork", "release", "releases", "workflow run", "github actions",
+        "code review", "milestone", "contributor", "readme",
+    ]), GITHUB_SECTION),
+
+    (frozenset([
+        "slack", "channel", "channels", "direct message",
+        "post message", "send message", "dm to", "send dm",
+        "notify", "notification", "slack message",
+        "thread", "reaction", "pin message", "invite to channel",
+        "workspace", "@here", "@channel",
+    ]), SLACK_SECTION),
+
+    (frozenset([
+        "document", "documents", "search docs", "search document",
+        "pdf", "wiki", "runbook", "knowledge base", "find in docs",
+        "search knowledge", "policy", "policies", "handbook",
+    ]), RAG_SECTION),
+
+    (frozenset([
+        "restart service", "restart the", "rollback", "roll back",
+        "deploy", "deployment", "rollout", "service down",
+        "bring down", "bring up", "revert deploy",
+    ]), OPS_SECTION),
+
+    (frozenset([
+        "service health", "check health", "metrics", "cpu usage",
+        "memory usage", "latency", "uptime", "error rate",
+        "throughput", "p95", "p99", "monitoring dashboard",
+    ]), MONITORING_SECTION),
+]
+
+
+def _available_sections(tool_names: list[str]) -> set[str]:
+    """Sections whose backing tools are actually registered."""
+    available: set[str] = set()
+    for trigger, section in _TOOL_TRIGGERS:
+        if any(trigger in name for name in tool_names):
+            available.add(section)
+    return available
+
 
 def build_system_prompt(tool_names: list[str]) -> str:
-    """Return a system prompt tailored to the given set of tool names."""
-    seen: set[str] = set()
-    sections: list[str] = []
+    """
+    Called once at CopilotAgent init.
+    Stores available sections on the agent; returns base-only prompt.
+    The per-turn injector (build_prompt_for_turn) does the real work.
+    """
+    # Return just the base — sections are injected per-turn.
+    return BASE_PROMPT
 
-    for trigger, section in _SECTIONS:
-        if section in seen:
+
+def detect_sections(messages: list[dict], available: set[str]) -> list[str]:
+    """
+    Scan the last 4 messages for service keywords.
+    Returns the list of section texts that should be injected this turn.
+    Falls back to ALL available sections if nothing is detected.
+    """
+    # Combine text of last 4 messages (user + assistant) for context window
+    window = " ".join(
+        m.get("content") or ""
+        for m in messages[-4:]
+        if isinstance(m.get("content"), str)
+    ).lower()
+
+    detected: list[str] = []
+    seen: set[str] = set()
+
+    for keywords, section in _KEYWORD_MAP:
+        if section not in available or section in seen:
             continue
-        if any(trigger in name for name in tool_names):
-            sections.append(section)
+        if any(kw in window for kw in keywords):
+            detected.append(section)
             seen.add(section)
 
+    # Nothing matched → inject everything available (safe fallback)
+    if not detected:
+        return [s for s in [
+            GITHUB_SECTION, SLACK_SECTION, RAG_SECTION,
+            OPS_SECTION, MONITORING_SECTION,
+        ] if s in available]
+
+    return detected
+
+
+def build_prompt_for_turn(base: str, messages: list[dict], available: set[str]) -> str:
+    """Build the full system prompt for this specific turn."""
+    sections = detect_sections(messages, available)
     if sections:
-        return BASE_PROMPT + "\n" + "\n".join(sections)
-    return BASE_PROMPT
+        return base + "\n" + "\n".join(sections)
+    return base

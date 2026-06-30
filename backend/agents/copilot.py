@@ -13,24 +13,28 @@ import json
 from backend.agents.base import BaseAgent
 from backend.core.tool_router import ToolRouter
 from backend.llm.base import LLMProvider
-from backend.prompts.builder import build_system_prompt
+from backend.prompts.builder import (
+    BASE_PROMPT,
+    _available_sections,
+    build_prompt_for_turn,
+)
 
 
 class CopilotAgent(BaseAgent):
     def __init__(self, llm: LLMProvider, router: ToolRouter, max_iterations: int = 5):
         tool_names = [s["function"]["name"] for s in router.schemas()]
-        prompt = build_system_prompt(tool_names)
-        super().__init__(llm, prompt)
+        super().__init__(llm, BASE_PROMPT)
+        self._available = _available_sections(tool_names)
         self.router = router
         self.max_iterations = max_iterations
 
-    async def run(self, history: list[dict]) -> str:
-        """Run the agent over a conversation history and return the reply text.
+    def _prompt_for(self, history: list[dict]) -> str:
+        """Return a prompt tailored to the current conversation context."""
+        return build_prompt_for_turn(BASE_PROMPT, history, self._available)
 
-        `history` is a list of {"role", "content"} messages (user/assistant).
-        """
+    async def run(self, history: list[dict]) -> str:
         messages: list[dict] = [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": self._prompt_for(history)},
             *history,
         ]
         tool_schemas = self.router.schemas()
@@ -82,15 +86,8 @@ class CopilotAgent(BaseAgent):
         )
 
     async def run_stream(self, history: list[dict]):
-        """Stream the agent's reply token-by-token.
-
-        Yields event dicts:
-          {"type": "tool", "name": str}   — a tool is being called
-          {"type": "token", "text": str}  — a content delta of the final answer
-          {"type": "done", "text": str}   — the complete final answer
-        """
         messages: list[dict] = [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": self._prompt_for(history)},
             *history,
         ]
         tool_schemas = self.router.schemas()
