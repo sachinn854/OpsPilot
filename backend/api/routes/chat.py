@@ -7,15 +7,15 @@ Ties the whole chat pipeline together:
 Memory is the conversation history stored in Postgres. Pass back the returned
 `conversation_id` on the next request to continue the same conversation.
 """
+import asyncio
 import json
+from functools import lru_cache
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from functools import lru_cache
 
 from backend.agents.copilot import CopilotAgent
 from backend.api.deps import get_registry, limiter
@@ -27,7 +27,32 @@ from backend.security.guardrails import check_injection
 
 router = APIRouter(prefix="/v1", tags=["chat"])
 
-_MAX_HISTORY = 40  # max messages loaded from DB per conversation
+_MAX_HISTORY = 40
+
+
+async def _auto_title(conv_id: str, user_msg: str, reply: str) -> None:
+    """Generate a smart title for a new conversation and persist it."""
+    try:
+        llm = OpenRouterProvider()
+        resp = await llm.chat([{
+            "role": "user",
+            "content": (
+                "Write a short 4-6 word title for this conversation. "
+                "No quotes, no punctuation at end. Return only the title.\n"
+                f"User: {user_msg[:200]}\n"
+                f"Reply: {reply[:300]}"
+            ),
+        }])
+        title = (resp.content or "").strip().strip('"\'').strip()[:80]
+        if not title:
+            return
+        async with AsyncSessionLocal() as s:
+            conv = await s.get(Conversation, conv_id)
+            if conv:
+                conv.title = title
+                await s.commit()
+    except Exception:
+        pass
 
 
 @lru_cache(maxsize=1)
@@ -52,6 +77,7 @@ class ChatResponse(BaseModel):
 async def chat(
     request: Request,
     req: ChatRequest,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
 ) -> ChatResponse:
     if not req.message.strip():
@@ -61,7 +87,7 @@ async def chat(
     if not guard.safe:
         raise HTTPException(status_code=400, detail=guard.reason)
 
-    # Load or create the conversation.
+    is_new = not req.conversation_id
     if req.conversation_id:
         conversation = await session.get(Conversation, req.conversation_id)
         if conversation is None:
@@ -69,9 +95,8 @@ async def chat(
     else:
         conversation = Conversation(title=req.message[:50])
         session.add(conversation)
-        await session.flush()  # assigns conversation.id
+        await session.flush()
 
-    # Load prior history (the agent's memory) — cap to avoid burning context window.
     result = await session.execute(
         select(Message)
         .where(Message.conversation_id == conversation.id)
@@ -79,24 +104,19 @@ async def chat(
         .limit(_MAX_HISTORY)
     )
     history = [{"role": m.role, "content": m.content} for m in reversed(result.scalars().all())]
-
-    # Append the new user turn (both for the agent and for storage).
     history.append({"role": "user", "content": req.message})
-    session.add(
-        Message(conversation_id=conversation.id, role="user", content=req.message)
-    )
+    session.add(Message(conversation_id=conversation.id, role="user", content=req.message))
 
-    # Run the Copilot.
     try:
         reply = await _get_copilot().run(history)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
-    # Persist the assistant reply.
-    session.add(
-        Message(conversation_id=conversation.id, role="assistant", content=reply)
-    )
+    session.add(Message(conversation_id=conversation.id, role="assistant", content=reply))
     await session.commit()
+
+    if is_new:
+        background_tasks.add_task(_auto_title, conversation.id, req.message, reply)
 
     return ChatResponse(conversation_id=conversation.id, reply=reply)
 
@@ -119,7 +139,7 @@ async def chat_stream(
     if not guard.safe:
         raise HTTPException(status_code=400, detail=guard.reason)
 
-    # Load or create the conversation.
+    is_new = not req.conversation_id
     if req.conversation_id:
         conversation = await session.get(Conversation, req.conversation_id)
         if conversation is None:
@@ -138,13 +158,10 @@ async def chat_stream(
     history = [{"role": m.role, "content": m.content} for m in reversed(result.scalars().all())]
     history.append({"role": "user", "content": req.message})
 
-    session.add(
-        Message(conversation_id=conversation.id, role="user", content=req.message)
-    )
-    # Commit everything (conversation + user message) NOW so the generator
-    # can open a fresh session later without hitting FK violations.
+    session.add(Message(conversation_id=conversation.id, role="user", content=req.message))
     await session.commit()
     conv_id = conversation.id
+    user_msg = req.message
 
     async def event_stream():
         yield _sse({"event": "start", "conversation_id": conv_id})
@@ -161,13 +178,13 @@ async def chat_stream(
             yield _sse({"event": "error", "detail": str(exc)})
             return
 
-        # Use a fresh session — the request-scoped dependency session is gone
-        # by the time this generator resumes after streaming completes.
         async with AsyncSessionLocal() as new_session:
-            new_session.add(
-                Message(conversation_id=conv_id, role="assistant", content=final_text)
-            )
+            new_session.add(Message(conversation_id=conv_id, role="assistant", content=final_text))
             await new_session.commit()
+
+        if is_new:
+            asyncio.create_task(_auto_title(conv_id, user_msg, final_text))
+
         yield _sse({"event": "done", "conversation_id": conv_id})
 
     return StreamingResponse(

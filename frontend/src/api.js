@@ -95,3 +95,16 @@ export async function sendChat(message, conversation_id = null) {
     body: JSON.stringify({ message, conversation_id }),
   })
 }
+
+// ── Conversations ─────────────────────────────────────────
+export async function fetchConversations() {
+  return apiFetch(`${BASE}/conversations`)
+}
+
+export async function fetchConversationMessages(id) {
+  return apiFetch(`${BASE}/conversations/${id}/messages`)
+}
+
+export async function deleteConversation(id) {
+  return apiFetch(`${BASE}/conversations/${id}`, { method: 'DELETE' })
+}

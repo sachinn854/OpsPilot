@@ -19,7 +19,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from backend.api.deps import limiter
-from backend.api.routes import approvals, chat, documents, integrations, mcp, runs, webhooks
+from backend.api.routes import approvals, chat, conversations, documents, integrations, mcp, runs, webhooks
 from backend.config import settings
 
 logging.basicConfig(
@@ -68,6 +68,7 @@ app.add_middleware(
 )
 
 app.include_router(chat.router)
+app.include_router(conversations.router)
 app.include_router(documents.router)
 app.include_router(runs.router)
 app.include_router(approvals.router)
