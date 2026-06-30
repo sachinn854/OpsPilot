@@ -45,6 +45,9 @@ class User(Base):
     # Digest email preferences
     digest_email_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     digest_email_override: Mapped[str] = mapped_column(String(255), default="")
+    # LLM provider preference (overrides .env when set)
+    llm_provider: Mapped[str] = mapped_column(String(50), default="")   # "" = use env default
+    llm_model: Mapped[str] = mapped_column(String(255), default="")     # "" = use env default
 
 
 class Conversation(Base):

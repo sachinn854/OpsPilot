@@ -21,11 +21,11 @@ OLLAMA_TOOL_CALLING_MODELS: list[dict] = [
 ]
 
 
-def get_llm_provider(provider: str | None = None) -> LLMProvider:
+def get_llm_provider(provider: str | None = None, model: str | None = None) -> LLMProvider:
     """
     Return the configured LLM provider.
 
-    provider arg overrides LLM_PROVIDER env — useful for per-request overrides.
+    provider + model args override env — pass user's saved preferences here.
     """
     from backend.config import settings
 
@@ -33,8 +33,15 @@ def get_llm_provider(provider: str | None = None) -> LLMProvider:
 
     if name == "ollama":
         from backend.llm.ollama_provider import OllamaProvider
-        return OllamaProvider()
+        return OllamaProvider(model=model or settings.OLLAMA_MODEL)
 
     # Default: openrouter
     from backend.llm.openrouter_provider import OpenRouterProvider
-    return OpenRouterProvider()
+    return OpenRouterProvider(model=model or settings.OPENROUTER_MODEL)
+
+
+def get_llm_for_user(user) -> LLMProvider:
+    """Return the LLM provider configured for a specific user (with env fallback)."""
+    provider = getattr(user, "llm_provider", "") or None
+    model    = getattr(user, "llm_model", "") or None
+    return get_llm_provider(provider=provider, model=model)

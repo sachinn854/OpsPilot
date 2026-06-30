@@ -1,17 +1,76 @@
 """
 LLM provider management endpoints.
 
-GET  /v1/llm/providers          — current provider config + available providers
-GET  /v1/llm/ollama/models      — models installed in local Ollama instance
-GET  /v1/llm/ollama/supported   — full list of models known to support tool-calling
+GET   /v1/llm/config            — user's current provider + model (with env fallback)
+PATCH /v1/llm/config            — save user's provider + model preference
+GET   /v1/llm/providers         — available providers info
+GET   /v1/llm/ollama/models     — models installed in local Ollama instance
+GET   /v1/llm/ollama/supported  — full list of models known to support tool-calling
 """
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.auth.deps import get_current_user
 from backend.config import settings
+from backend.db.models import User
+from backend.db.session import get_session
 from backend.llm.factory import OLLAMA_TOOL_CALLING_MODELS
 
 router = APIRouter(prefix="/v1/llm", tags=["llm"])
+
+
+# ── User LLM config ───────────────────────────────────────────────────────────
+
+class LLMConfigIn(BaseModel):
+    provider: str   # "openrouter" | "ollama"
+    model: str      # model name
+
+
+@router.get("/config")
+async def get_llm_config(current_user: User = Depends(get_current_user)):
+    """Return the user's active LLM config (user pref → env fallback)."""
+    provider = current_user.llm_provider or settings.LLM_PROVIDER
+    model    = current_user.llm_model or (
+        settings.OLLAMA_MODEL if provider == "ollama" else settings.OPENROUTER_MODEL
+    )
+    return {
+        "provider":       provider,
+        "model":          model,
+        "is_custom":      bool(current_user.llm_provider),
+        "env_provider":   settings.LLM_PROVIDER,
+        "env_model":      settings.OLLAMA_MODEL if settings.LLM_PROVIDER == "ollama" else settings.OPENROUTER_MODEL,
+    }
+
+
+@router.patch("/config")
+async def set_llm_config(
+    body: LLMConfigIn,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Save the user's LLM provider + model preference."""
+    if body.provider not in ("openrouter", "ollama"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="provider must be 'openrouter' or 'ollama'")
+
+    current_user.llm_provider = body.provider
+    current_user.llm_model    = body.model.strip()
+    await session.commit()
+    return {"ok": True, "provider": body.provider, "model": body.model}
+
+
+@router.delete("/config")
+async def reset_llm_config(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Reset to system default (remove user override)."""
+    current_user.llm_provider = ""
+    current_user.llm_model    = ""
+    await session.commit()
+    return {"ok": True, "message": "Reset to system default"}
 
 
 @router.get("/providers")

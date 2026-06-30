@@ -9,7 +9,6 @@ Memory is the conversation history stored in Postgres. Pass back the returned
 """
 import asyncio
 import json
-from functools import lru_cache
 
 import httpx
 
@@ -25,7 +24,7 @@ from backend.auth.deps import get_current_user
 from backend.config import settings
 from backend.db.models import Conversation, Message, User
 from backend.db.session import AsyncSessionLocal, get_session
-from backend.llm.factory import get_llm_provider
+from backend.llm.factory import get_llm_for_user
 from backend.llm.openrouter_provider import OpenRouterProvider
 from backend.security.guardrails import check_injection
 
@@ -72,11 +71,14 @@ async def _auto_title(conv_id: str, user_msg: str, reply: str) -> None:
         pass
 
 
-@lru_cache(maxsize=1)
-def _get_copilot() -> CopilotAgent:
-    """Lazy singleton — created on first request, not at import time."""
+def _get_router():
     from backend.core.tool_router import build_default_router
-    return CopilotAgent(llm=get_llm_provider(), router=build_default_router())
+    return build_default_router()
+
+
+def _get_copilot(user) -> CopilotAgent:
+    """Create a Copilot agent with the user's preferred LLM provider."""
+    return CopilotAgent(llm=get_llm_for_user(user), router=_get_router())
 
 
 class ChatRequest(BaseModel):
@@ -126,7 +128,7 @@ async def chat(
     session.add(Message(conversation_id=conversation.id, role="user", content=req.message))
 
     try:
-        reply = await _get_copilot().run(history, user_name=current_user.name or current_user.email)
+        reply = await _get_copilot(current_user).run(history, user_name=current_user.name or current_user.email)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
@@ -186,7 +188,7 @@ async def chat_stream(
         yield _sse({"event": "start", "conversation_id": conv_id})
         final_text = ""
         try:
-            async for ev in _get_copilot().run_stream(history, user_name=current_user.name or current_user.email):
+            async for ev in _get_copilot(current_user).run_stream(history, user_name=current_user.name or current_user.email):
                 if ev["type"] == "tool":
                     yield _sse({"event": "tool", "name": ev["name"]})
                 elif ev["type"] == "token":
