@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { fetchConversationMessages } from '../api'
+import { fetchConversationMessages, getToken } from '../api'
 
 function Avatar() {
   return (
@@ -114,7 +114,10 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
     try {
       const res = await fetch('/v1/chat/stream', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
         body: JSON.stringify({ message: text, conversation_id: activeConvId }),
         signal: controller.signal,
       })
