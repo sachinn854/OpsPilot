@@ -10,7 +10,7 @@ function Badge({ status }) {
   )
 }
 
-export default function RunList({ onSelect }) {
+export default function RunList({ onSelect, onNew }) {
   const [runs, setRuns]       = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
@@ -23,16 +23,21 @@ export default function RunList({ onSelect }) {
   }, [])
 
   if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', color:'var(--text3)', marginTop:'2rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text3)', marginTop: '2rem' }}>
       <div className="spinner" /> Loading runs…
     </div>
   )
 
   return (
     <div>
-      <div className="page-header">
-        <div className="page-title">Runs</div>
-        <div className="page-subtitle">{runs.length} total run{runs.length !== 1 ? 's' : ''}</div>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <div className="page-title">Runs</div>
+          <div className="page-subtitle">{runs.length} total run{runs.length !== 1 ? 's' : ''}</div>
+        </div>
+        <button className="btn btn-primary" onClick={onNew} style={{ marginTop: '0.15rem' }}>
+          + New Run
+        </button>
       </div>
 
       {error && <div className="error">{error}</div>}
@@ -40,7 +45,7 @@ export default function RunList({ onSelect }) {
       {!runs.length && !error && (
         <div className="empty">
           <div className="empty-icon">▷</div>
-          <div className="empty-text">No runs yet — start one from New Run</div>
+          <div className="empty-text">No runs yet — click New Run to get started</div>
         </div>
       )}
 
@@ -57,13 +62,13 @@ export default function RunList({ onSelect }) {
               </span>
             )}
             <span className="spacer" />
-            <span className="muted mono" style={{ fontSize:'0.7rem' }}>{r.id.slice(0, 8)}</span>
+            <span className="muted mono" style={{ fontSize: '0.68rem' }}>{r.id.slice(0, 8)}</span>
           </div>
           <div className="run-goal">{r.goal}</div>
           <div className="run-meta">
             <span>{r.attempts} attempt{r.attempts !== 1 ? 's' : ''}</span>
             <span>·</span>
-            <span className="mono" style={{ fontSize:'0.72rem' }}>{new Date(r.created_at).toLocaleString()}</span>
+            <span className="mono" style={{ fontSize: '0.7rem' }}>{new Date(r.created_at).toLocaleString()}</span>
           </div>
         </div>
       ))}

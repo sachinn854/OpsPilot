@@ -10,19 +10,24 @@ import Settings from './components/Settings'
 import './App.css'
 
 const NAV = [
-  { id: 'chat',      icon: '◎', label: 'Chat',      group: 'Assistant' },
-  { id: 'runs',      icon: '⊞', label: 'Runs',      group: 'Agent Runs' },
-  { id: 'new',       icon: '⊕', label: 'New Run',   group: 'Agent Runs' },
-  { id: 'approvals', icon: '◈', label: 'Approvals', group: 'Agent Runs' },
-  { id: 'documents', icon: '⊡', label: 'Documents', group: 'Knowledge' },
-  { id: 'tools',     icon: '⊙', label: 'Tools',     group: 'System'    },
-  { id: 'settings',  icon: '⚙', label: 'Settings',  group: 'System'    },
+  { id: 'chat',      icon: '◎', label: 'Chat',      group: 'main' },
+  { id: 'runs',      icon: '▶', label: 'Runs',      group: 'ops'  },
+  { id: 'approvals', icon: '◈', label: 'Approvals', group: 'ops'  },
+  { id: 'documents', icon: '⊡', label: 'Documents', group: 'ops'  },
+  { id: 'tools',     icon: '⊙', label: 'Tools',     group: 'sys'  },
+  { id: 'settings',  icon: '⚙', label: 'Settings',  group: 'sys'  },
 ]
 
+const GROUP_LABELS = {
+  main: null,      // no label for top item
+  ops:  'Workspace',
+  sys:  'System',
+}
+
 export default function App() {
-  const [page, setPage]           = useState('chat')
+  const [page, setPage]                   = useState('chat')
   const [selectedRunId, setSelectedRunId] = useState(null)
-  const [online, setOnline]       = useState(null)  // null = checking, true/false
+  const [online, setOnline]               = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -40,15 +45,16 @@ export default function App() {
   }, [])
 
   function nav(p) { setPage(p); setSelectedRunId(null) }
-  const activePage = page === 'detail' ? 'runs' : page
-  const defaultPage = 'chat'
+  const activePage = page === 'detail' || page === 'new' ? 'runs' : page
+
+  const groups = [...new Set(NAV.map(n => n.group))]
 
   return (
     <div className="app">
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="logo">
-            <div className="logo-mark">⚙</div>
+            <div className="logo-mark">OP</div>
             <div className="logo-text">
               <div className="logo-name">OpsPilot</div>
               <div className="logo-tag">AI Copilot</div>
@@ -57,11 +63,12 @@ export default function App() {
         </div>
 
         <div className="nav-section">
-          {['Assistant', 'Agent Runs', 'Knowledge', 'System'].map(group => {
+          {groups.map(group => {
             const items = NAV.filter(n => n.group === group)
+            const label = GROUP_LABELS[group]
             return (
               <div key={group}>
-                <div className="nav-group-label">{group}</div>
+                {label && <div className="nav-group-label">{label}</div>}
                 {items.map(n => (
                   <button
                     key={n.id}
@@ -87,9 +94,14 @@ export default function App() {
 
       <main className="content">
         {page === 'chat'      && <Chat />}
-        {page === 'runs'      && <RunList onSelect={id => { setSelectedRunId(id); setPage('detail') }} />}
+        {page === 'runs'      && (
+          <RunList
+            onSelect={id => { setSelectedRunId(id); setPage('detail') }}
+            onNew={() => setPage('new')}
+          />
+        )}
         {page === 'detail'    && selectedRunId && <RunDetail runId={selectedRunId} onBack={() => nav('runs')} />}
-        {page === 'new'       && <NewRun onDone={id => { setSelectedRunId(id); setPage('detail') }} />}
+        {page === 'new'       && <NewRun onDone={id => { setSelectedRunId(id); setPage('detail') }} onBack={() => nav('runs')} />}
         {page === 'approvals' && <ApprovalPanel />}
         {page === 'documents' && <Documents />}
         {page === 'tools'     && <ToolsPanel />}

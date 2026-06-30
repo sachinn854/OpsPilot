@@ -20,7 +20,7 @@ const SUGGESTIONS = [
   'Restart the production web server service',
 ]
 
-export default function NewRun({ onDone }) {
+export default function NewRun({ onDone, onBack }) {
   const [goal, setGoal]       = useState('')
   const [running, setRunning] = useState(false)
   const [events, setEvents]   = useState([])
@@ -75,6 +75,8 @@ export default function NewRun({ onDone }) {
 
   return (
     <div>
+      <button className="back-btn" onClick={onBack}>← Back to runs</button>
+
       <div className="page-header">
         <div className="page-title">New Run</div>
         <div className="page-subtitle">Describe a goal — the copilot plans and executes it</div>
@@ -103,17 +105,17 @@ export default function NewRun({ onDone }) {
             </div>
           )}
 
-          {error && <div className="error" style={{ marginBottom:'1rem' }}>{error}</div>}
+          {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
 
           <button type="submit" className="btn btn-primary" disabled={running || !goal.trim()}>
             {running
-              ? <><div className="spinner" style={{ borderTopColor:'#fff' }} /> Running…</>
+              ? <><div className="spinner" style={{ borderTopColor: '#fff' }} /> Running…</>
               : '▶  Start Run'}
           </button>
         </form>
 
         {events.length > 0 && (
-          <div style={{ marginTop:'2rem' }}>
+          <div style={{ marginTop: '2rem' }}>
             <div className="section-label">Live Progress</div>
             <div className="timeline">
               {events.map((ev, i) => {
@@ -134,10 +136,10 @@ export default function NewRun({ onDone }) {
               {running && (
                 <div className="tl-item tl-pending">
                   <div className="tl-icon">
-                    <div className="spinner" style={{ width:13, height:13, borderWidth:2 }} />
+                    <div className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />
                   </div>
                   <div className="tl-body">
-                    <div className="tl-label" style={{ color:'var(--text3)' }}>Working…</div>
+                    <div className="tl-label" style={{ color: 'var(--text3)' }}>Working…</div>
                   </div>
                 </div>
               )}

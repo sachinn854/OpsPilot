@@ -34,7 +34,7 @@ export default function ApprovalPanel() {
       </div>
 
       {loading && (
-        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', color:'var(--text3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text3)' }}>
           <div className="spinner" /> Loading…
         </div>
       )}
@@ -50,7 +50,7 @@ export default function ApprovalPanel() {
 
       {approvals.map(a => (
         <div key={a.id} className="approval-card">
-          <div className="row" style={{ marginBottom:'0.5rem' }}>
+          <div className="row" style={{ marginBottom: '0.45rem' }}>
             <span className={`badge ${a.status}`}>
               <span className="bdot" />{a.status}
             </span>
@@ -67,13 +67,16 @@ export default function ApprovalPanel() {
                 onClick={() => handleDecide(a.id, true, a.action)}
               >
                 {busy === a.id
-                  ? <><div className="spinner" style={{ borderTopColor:'#fff', width:13, height:13 }} /> Working…</>
+                  ? <><div className="spinner" style={{ borderTopColor: '#fff', width: 13, height: 13 }} /> Working…</>
                   : '✓ Approve'}
               </button>
-              <button className="btn btn-danger" disabled={busy === a.id} onClick={() => handleDecide(a.id, false, a.action)}>
+              <button
+                className="btn btn-danger"
+                disabled={busy === a.id}
+                onClick={() => handleDecide(a.id, false, a.action)}
+              >
                 ✕ Reject
               </button>
-              <button className="btn btn-ghost" onClick={load}>↻ Refresh</button>
             </div>
           )}
         </div>
