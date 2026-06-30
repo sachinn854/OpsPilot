@@ -63,11 +63,11 @@ _KEYWORD_MAP: list[tuple[frozenset[str], str]] = [
     ]), OPS_SECTION),
 
     (frozenset([
-        "standup", "stand up", "daily summary", "morning report", "aaj kya hua",
-        "stale pr", "pr reminder", "review reminder", "chase karo",
-        "incident", "production down", "prod down", "outage", "kuch toot gaya",
-        "sabko bolo", "notify everyone", "pr stakeholders", "contributors ko",
-        "pr merge ho gaya", "notify team",
+        "standup", "stand up", "daily summary", "morning report",
+        "stale pr", "pr reminder", "review reminder", "chase reviewers",
+        "incident", "production down", "prod down", "outage",
+        "notify everyone", "pr stakeholders", "notify pr",
+        "pr merged", "notify team", "broadcast incident",
     ]), WORKFLOWS_SECTION),
 
     (frozenset([
