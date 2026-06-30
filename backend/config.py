@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # --- OpenRouter (LLM) ---
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "anthropic/claude-haiku-4-5"
+    # Small free model used only for prompt-section classification (1-2 tokens output).
+    # Any free model on openrouter.ai works; default is Llama 3.1 8B (free tier).
+    CLASSIFIER_MODEL: str = "meta-llama/llama-3.1-8b-instruct:free"
 
     # --- JWT auth ---
     JWT_SECRET: str = "change-me-in-production-use-a-long-random-string"

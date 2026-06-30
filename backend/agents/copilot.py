@@ -28,13 +28,13 @@ class CopilotAgent(BaseAgent):
         self.router = router
         self.max_iterations = max_iterations
 
-    def _prompt_for(self, history: list[dict]) -> str:
+    async def _prompt_for(self, history: list[dict]) -> str:
         """Return a prompt tailored to the current conversation context."""
-        return build_prompt_for_turn(BASE_PROMPT, history, self._available)
+        return await build_prompt_for_turn(BASE_PROMPT, history, self._available)
 
     async def run(self, history: list[dict]) -> str:
         messages: list[dict] = [
-            {"role": "system", "content": self._prompt_for(history)},
+            {"role": "system", "content": await self._prompt_for(history)},
             *history,
         ]
         tool_schemas = self.router.schemas()
@@ -87,7 +87,7 @@ class CopilotAgent(BaseAgent):
 
     async def run_stream(self, history: list[dict]):
         messages: list[dict] = [
-            {"role": "system", "content": self._prompt_for(history)},
+            {"role": "system", "content": await self._prompt_for(history)},
             *history,
         ]
         tool_schemas = self.router.schemas()
