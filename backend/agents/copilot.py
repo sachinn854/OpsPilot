@@ -15,6 +15,7 @@ from backend.core.tool_router import ToolRouter
 from backend.llm.base import LLMProvider
 from backend.prompts.builder import (
     BASE_PROMPT,
+    BUILD_PROMPT_USER_PREFIX,
     _available_sections,
     build_prompt_for_turn,
 )
@@ -28,13 +29,14 @@ class CopilotAgent(BaseAgent):
         self.router = router
         self.max_iterations = max_iterations
 
-    async def _prompt_for(self, history: list[dict]) -> str:
+    async def _prompt_for(self, history: list[dict], user_name: str = "") -> str:
         """Return a prompt tailored to the current conversation context."""
-        return await build_prompt_for_turn(BASE_PROMPT, history, self._available)
+        base = BUILD_PROMPT_USER_PREFIX.format(user_name=user_name) + BASE_PROMPT if user_name else BASE_PROMPT
+        return await build_prompt_for_turn(base, history, self._available)
 
-    async def run(self, history: list[dict]) -> str:
+    async def run(self, history: list[dict], user_name: str = "") -> str:
         messages: list[dict] = [
-            {"role": "system", "content": await self._prompt_for(history)},
+            {"role": "system", "content": await self._prompt_for(history, user_name)},
             *history,
         ]
         tool_schemas = self.router.schemas()
@@ -85,9 +87,9 @@ class CopilotAgent(BaseAgent):
             "I couldn't fully complete the request within the step limit."
         )
 
-    async def run_stream(self, history: list[dict]):
+    async def run_stream(self, history: list[dict], user_name: str = ""):
         messages: list[dict] = [
-            {"role": "system", "content": await self._prompt_for(history)},
+            {"role": "system", "content": await self._prompt_for(history, user_name)},
             *history,
         ]
         tool_schemas = self.router.schemas()

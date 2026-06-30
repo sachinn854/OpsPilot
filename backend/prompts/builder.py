@@ -22,6 +22,8 @@ from backend.prompts.sections.workflows import WORKFLOWS_SECTION
 
 logger = logging.getLogger("copilot.prompt_builder")
 
+BUILD_PROMPT_USER_PREFIX = "The user's name is {user_name}. Address them by name when appropriate.\n\n"
+
 # ── Tool-presence map ─────────────────────────────────────────────────────────
 # Which tool-name substring → which section label
 _TOOL_TRIGGERS: list[tuple[str, str]] = [

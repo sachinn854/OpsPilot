@@ -110,7 +110,7 @@ async def chat(
     session.add(Message(conversation_id=conversation.id, role="user", content=req.message))
 
     try:
-        reply = await _get_copilot().run(history)
+        reply = await _get_copilot().run(history, user_name=current_user.name or current_user.email)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
@@ -170,7 +170,7 @@ async def chat_stream(
         yield _sse({"event": "start", "conversation_id": conv_id})
         final_text = ""
         try:
-            async for ev in _get_copilot().run_stream(history):
+            async for ev in _get_copilot().run_stream(history, user_name=current_user.name or current_user.email):
                 if ev["type"] == "tool":
                     yield _sse({"event": "tool", "name": ev["name"]})
                 elif ev["type"] == "token":
