@@ -1,15 +1,18 @@
 #!/bin/sh
 set -e
 
-echo "Running Alembic migrations..."
-cd /app
-python -m alembic -c backend/alembic.ini upgrade head 2>/dev/null || \
-  python -c "
-import asyncio
+echo "Initializing database (best-effort)..."
+python -c "
+import asyncio, sys
 from backend.db.session import init_db
-asyncio.run(init_db())
-print('DB tables created via SQLAlchemy (no alembic.ini found).')
-"
+async def run():
+    try:
+        await init_db()
+        print('DB initialized.')
+    except Exception as e:
+        print(f'DB init skipped: {e}', file=sys.stderr)
+asyncio.run(run())
+" || echo "DB init failed — uvicorn will retry on first request."
 
 echo "Starting uvicorn..."
 exec uvicorn backend.main:app \
