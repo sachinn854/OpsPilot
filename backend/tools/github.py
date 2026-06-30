@@ -529,8 +529,10 @@ class GitHubSearchCodeTool(Tool):
 class GitHubUserReposTool(Tool):
     name = "github_user_repos"
     description = (
-        "List GitHub repositories for the authenticated user (requires GITHUB_TOKEN). "
-        "Use this when the user asks 'what are my repos' or 'list my repositories'."
+        "List all GitHub repositories for the authenticated user. "
+        "ALWAYS call this first when the user mentions a repo by short name only "
+        "(e.g. 'CortexTutor', 'my project') so you can find the full 'owner/name' "
+        "before calling any other GitHub tool. Also use for 'list my repos' requests."
     )
     parameters = {
         "type": "object",
