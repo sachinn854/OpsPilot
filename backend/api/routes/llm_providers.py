@@ -32,8 +32,12 @@ class LLMConfigIn(BaseModel):
 @router.get("/config")
 async def get_llm_config(current_user: User = Depends(get_current_user)):
     """Return the user's active LLM config (user pref → env fallback)."""
+    saved_model = current_user.llm_model or ""
+    # Sanitize: if model looks like an email it's a bad DB value — ignore it
+    if "@" in saved_model:
+        saved_model = ""
     provider = current_user.llm_provider or settings.LLM_PROVIDER
-    model    = current_user.llm_model or (
+    model    = saved_model or (
         settings.OLLAMA_MODEL if provider == "ollama" else settings.OPENROUTER_MODEL
     )
     return {
