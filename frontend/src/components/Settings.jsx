@@ -173,7 +173,13 @@ export default function Settings() {
   const [success, setSuccess]     = useState({})
   const [showGuide, setShowGuide] = useState({})
 
-  useEffect(() => { loadConnected() }, [])
+  // Email digest preferences
+  const [digestEnabled, setDigestEnabled]   = useState(true)
+  const [digestEmail, setDigestEmail]       = useState('')
+  const [digestSaving, setDigestSaving]     = useState(false)
+  const [digestMsg, setDigestMsg]           = useState('')
+
+  useEffect(() => { loadConnected(); loadDigestPrefs() }, [])
 
   async function loadConnected() {
     try {
@@ -181,7 +187,35 @@ export default function Settings() {
       const map = {}
       for (const r of rows) map[r.service] = r
       setConnected(map)
-    } catch { /* silent — backend may be down */ }
+    } catch { /* silent */ }
+  }
+
+  async function loadDigestPrefs() {
+    try {
+      const me = await apiFetch('/v1/auth/me')
+      setDigestEnabled(me.digest_email_enabled ?? true)
+      setDigestEmail(me.digest_email_override || '')
+    } catch { /* silent */ }
+  }
+
+  async function saveDigestPrefs() {
+    setDigestSaving(true)
+    setDigestMsg('')
+    try {
+      await apiFetch('/v1/auth/digest-prefs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          digest_email_enabled: digestEnabled,
+          digest_email_override: digestEmail.trim(),
+        }),
+      })
+      setDigestMsg('Saved!')
+    } catch (e) {
+      setDigestMsg('Failed to save: ' + e.message)
+    } finally {
+      setDigestSaving(false)
+    }
   }
 
   async function handleConnect(serviceId) {
@@ -268,6 +302,80 @@ export default function Settings() {
               <li>Content type: <code style={{ background: 'var(--surface3)', padding: '0 4px', borderRadius: 3 }}>application/json</code> · paste the same secret</li>
               <li>Select events: push, pull requests, issues, releases</li>
             </ol>
+          </div>
+        </div>
+
+        {/* Email Digest card */}
+        <div className="card static" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+            <span style={{ fontSize: '1.1rem', color: 'var(--accent)' }}>✉</span>
+            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Email Digest</span>
+            <span className="badge" style={{ fontSize: '0.65rem', background: 'var(--surface3)', color: 'var(--text2)' }}>
+              twice daily
+            </span>
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text2)', marginBottom: '1rem' }}>
+            Receive a summary of all Slack channel activity — sent automatically at 9 AM and 6 PM UTC.
+          </div>
+
+          {/* Toggle */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', marginBottom: '0.85rem' }}>
+            <div
+              onClick={() => setDigestEnabled(v => !v)}
+              style={{
+                width: 36, height: 20, borderRadius: 10, flexShrink: 0,
+                background: digestEnabled ? 'var(--accent)' : 'var(--surface3)',
+                position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
+              }}
+            >
+              <div style={{
+                width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                position: 'absolute', top: 3,
+                left: digestEnabled ? 18 : 3,
+                transition: 'left 0.2s',
+              }} />
+            </div>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text2)' }}>
+              {digestEnabled ? 'Email digest enabled' : 'Email digest disabled'}
+            </span>
+          </label>
+
+          {/* Optional override email */}
+          {digestEnabled && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text3)', marginBottom: '0.3rem' }}>
+                Send to (leave blank to use your account email)
+              </div>
+              <input
+                type="email"
+                placeholder="other@example.com"
+                value={digestEmail}
+                onChange={e => setDigestEmail(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'var(--surface2)', border: '1px solid var(--border2)',
+                  borderRadius: 'var(--r-sm)', color: 'var(--text)',
+                  padding: '0.55rem 0.8rem', fontSize: '0.85rem',
+                  fontFamily: 'Inter, sans-serif',
+                }}
+              />
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              className="btn btn-primary"
+              style={{ padding: '0.45rem 1rem', fontSize: '0.8rem' }}
+              disabled={digestSaving}
+              onClick={saveDigestPrefs}
+            >
+              {digestSaving ? 'Saving…' : 'Save'}
+            </button>
+            {digestMsg && (
+              <span style={{ fontSize: '0.78rem', color: digestMsg.startsWith('Failed') ? 'var(--red)' : 'var(--green)' }}>
+                {digestMsg}
+              </span>
+            )}
           </div>
         </div>
 

@@ -86,6 +86,13 @@ class Settings(BaseSettings):
     # Comma-separated server names to enable, or "all" for everything.
     TOOLS_ENABLED: str = "github,rag,ops,slack,search,monitoring"
 
+    # --- Email (SMTP) ---
+    SMTP_HOST: str = ""            # e.g. smtp.gmail.com
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""            # sender address
+    SMTP_PASSWORD: str = ""        # app password (Gmail) or API key (SendGrid)
+    SMTP_FROM_NAME: str = "OpsPilot"
+
     # --- LangSmith tracing (optional) ---
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "ai-operations-copilot"

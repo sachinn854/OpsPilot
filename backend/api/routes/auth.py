@@ -72,4 +72,28 @@ async def login(req: LoginRequest, session: AsyncSession = Depends(get_session))
 
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)):
-    return {"id": current_user.id, "email": current_user.email, "name": current_user.name}
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "digest_email_enabled": current_user.digest_email_enabled,
+        "digest_email_override": current_user.digest_email_override or "",
+    }
+
+
+class DigestPrefsRequest(BaseModel):
+    digest_email_enabled: bool = True
+    digest_email_override: str = ""
+
+
+@router.patch("/digest-prefs")
+async def update_digest_prefs(
+    req: DigestPrefsRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    current_user.digest_email_enabled  = req.digest_email_enabled
+    current_user.digest_email_override = req.digest_email_override.strip()
+    session.add(current_user)
+    await session.commit()
+    return {"ok": True}

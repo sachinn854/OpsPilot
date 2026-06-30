@@ -280,10 +280,34 @@ async def _run_slack_digest(org_id: str, hours: int) -> dict:
         })
         posted = result.get("ok", False)
 
+    # ── 5. Email delivery ────────────────────────────────────────────────────
+    emails_sent = 0
+    try:
+        from sqlalchemy import select
+
+        from backend.db.models import User
+        from backend.db.session import AsyncSessionLocal
+        from backend.workers.email_utils import send_slack_digest
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(User).where(User.digest_email_enabled == True)  # noqa: E712
+            )
+            users = result.scalars().all()
+
+        for user in users:
+            recipient = user.digest_email_override.strip() or user.email
+            ok = send_slack_digest(recipient, digest, period_label)
+            if ok:
+                emails_sent += 1
+    except Exception as exc:
+        logger.warning("Email delivery failed: %s", exc)
+
     return {
         "ok": True,
         "channels_summarised": channels_processed,
         "channels_total": len(all_channels),
         "posted_to_slack": posted,
+        "emails_sent": emails_sent,
         "digest_length": len(digest),
     }
