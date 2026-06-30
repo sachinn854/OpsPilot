@@ -7,7 +7,8 @@ import ToolsPanel from './components/ToolsPanel'
 import Documents from './components/Documents'
 import Chat from './components/Chat'
 import Settings from './components/Settings'
-import { deleteConversation, fetchConversations } from './api'
+import Login from './components/Login'
+import { authMe, clearAuth, deleteConversation, fetchConversations, getToken, getUser } from './api'
 import './App.css'
 
 function timeAgo(iso) {
@@ -35,10 +36,26 @@ export default function App() {
   const [selectedRunId, setSelectedRunId] = useState(null)
   const [online, setOnline]               = useState(null)
 
+  // Auth state
+  const [user, setUser] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
+
   // Conversation state — lives here so sidebar can render the list
-  const [convList, setConvList]       = useState([])
+  const [convList, setConvList]         = useState([])
   const [activeConvId, setActiveConvId] = useState(null)
-  const [hoveredConv, setHoveredConv] = useState(null)
+  const [hoveredConv, setHoveredConv]   = useState(null)
+
+  // Verify stored token on mount
+  useEffect(() => {
+    const token = getToken()
+    if (!token) { setAuthChecked(true); return }
+    authMe()
+      .then(u => { setUser(u); setAuthChecked(true) })
+      .catch(() => { clearAuth(); setAuthChecked(true) })
+  }, [])
+
+  function handleLogin(u) { setUser(u) }
+  function handleLogout() { clearAuth(); setUser(null); setConvList([]); setActiveConvId(null) }
 
   // Health check
   useEffect(() => {
@@ -89,6 +106,12 @@ export default function App() {
   const activePage = page === 'detail' || page === 'new' ? 'runs' : page
   const groups = [...new Set(NAV_BOTTOM.map(n => n.group))]
   const activeConv = convList.find(c => c.id === activeConvId)
+
+  // Show nothing while checking auth
+  if (!authChecked) return null
+
+  // Show login page if not authenticated
+  if (!user) return <Login onLogin={handleLogin} />
 
   return (
     <div className="app">
@@ -181,8 +204,28 @@ export default function App() {
         </div>
 
         <div className="sidebar-footer">
-          <span>v0.7</span>
-          <span className={`online-badge${online === false ? ' offline' : ''}`}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text2)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.name || user.email}
+            </div>
+            <div style={{ fontSize: '0.67rem', color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.email}
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            title="Sign out"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text3)', fontSize: '0.8rem', padding: '2px 4px',
+              borderRadius: 4, flexShrink: 0,
+            }}
+          >⏻</button>
+        </div>
+
+        <div style={{ padding: '0 0.75rem 0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.65rem', color: 'var(--text3)' }}>v0.7</span>
+          <span className={`online-badge${online === false ? ' offline' : ''}`} style={{ fontSize: '0.65rem' }}>
             {online === null ? 'Connecting…' : online ? 'Online' : 'Offline'}
           </span>
         </div>

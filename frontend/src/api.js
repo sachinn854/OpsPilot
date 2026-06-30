@@ -1,15 +1,56 @@
 const BASE = '/v1'
 const TIMEOUT_MS = 30_000
 
+export function getToken() { return localStorage.getItem('token') }
+export function getUser()  { try { return JSON.parse(localStorage.getItem('user')) } catch { return null } }
+export function saveAuth(token, user) {
+  localStorage.setItem('token', token)
+  localStorage.setItem('user', JSON.stringify(user))
+}
+export function clearAuth() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+}
+
 export async function apiFetch(url, opts = {}) {
   const signal = AbortSignal.timeout(TIMEOUT_MS)
-  const res = await fetch(url, { ...opts, signal })
+  const token = getToken()
+  const headers = { ...(opts.headers || {}) }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(url, { ...opts, headers, signal })
   if (!res.ok) {
     let detail
     try { detail = (await res.json()).detail } catch { detail = res.statusText }
     throw new Error(detail || `HTTP ${res.status}`)
   }
   return res.json()
+}
+
+// ── Auth ─────────────────────────────────────────────────
+export async function authRegister(email, password, name = '') {
+  const res = await fetch(`${BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, name }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.detail || 'Registration failed')
+  return data
+}
+
+export async function authLogin(email, password) {
+  const res = await fetch(`${BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.detail || 'Login failed')
+  return data
+}
+
+export async function authMe() {
+  return apiFetch(`${BASE}/auth/me`)
 }
 
 export async function fetchRuns() {
