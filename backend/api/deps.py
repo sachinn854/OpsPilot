@@ -16,7 +16,7 @@ from slowapi.util import get_remote_address
 
 from backend.config import settings
 from backend.core.orchestrator import Orchestrator
-from backend.llm.openrouter_provider import OpenRouterProvider
+from backend.llm.factory import get_llm_provider
 from backend.mcp.registry import ToolRegistry
 from backend.mcp.servers.github_server import GitHubServer
 from backend.mcp.servers.monitoring_server import MonitoringServer
@@ -60,4 +60,4 @@ def get_orchestrator() -> Orchestrator:
     The MCP registry is used for discovery (GET /v1/mcp/tools) only.
     """
     from backend.core.tool_router import build_default_router
-    return Orchestrator(llm=OpenRouterProvider(), router=build_default_router())
+    return Orchestrator(llm=get_llm_provider(), router=build_default_router())

@@ -25,6 +25,7 @@ from backend.auth.deps import get_current_user
 from backend.config import settings
 from backend.db.models import Conversation, Message, User
 from backend.db.session import AsyncSessionLocal, get_session
+from backend.llm.factory import get_llm_provider
 from backend.llm.openrouter_provider import OpenRouterProvider
 from backend.security.guardrails import check_injection
 
@@ -75,7 +76,7 @@ async def _auto_title(conv_id: str, user_msg: str, reply: str) -> None:
 def _get_copilot() -> CopilotAgent:
     """Lazy singleton — created on first request, not at import time."""
     from backend.core.tool_router import build_default_router
-    return CopilotAgent(llm=OpenRouterProvider(), router=build_default_router())
+    return CopilotAgent(llm=get_llm_provider(), router=build_default_router())
 
 
 class ChatRequest(BaseModel):

@@ -165,6 +165,95 @@ function TokenGuide({ guide, onClose }) {
   )
 }
 
+function LLMProviderPanel() {
+  const [info, setInfo]             = useState(null)
+  const [ollamaModels, setOllama]   = useState(null)
+  const [supported, setSupported]   = useState([])
+  const [loading, setLoading]       = useState(true)
+
+  useEffect(() => {
+    apiFetch('/v1/llm/providers').then(setInfo).catch(() => {})
+    apiFetch('/v1/llm/ollama/supported').then(r => setSupported(r.models || [])).catch(() => {})
+    apiFetch('/v1/llm/ollama/models')
+      .then(r => setOllama(r))
+      .catch(() => setOllama({ ok: false, error: 'Could not reach backend' }))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const isOllama = info?.active_provider === 'ollama'
+
+  return (
+    <div className="card static" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+      <div style={{ fontWeight: 600, fontSize: '0.92rem', marginBottom: '0.6rem' }}>🤖 LLM Provider</div>
+
+      {/* Active provider badge */}
+      {info && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem' }}>
+          <span className="badge" style={{ background: isOllama ? 'var(--green, #22c55e)' : 'var(--accent)', color: '#fff', fontSize: '0.72rem' }}>
+            {isOllama ? '🖥 Ollama (local)' : '☁ OpenRouter (cloud)'}
+          </span>
+          <code style={{ fontSize: '0.78rem', color: 'var(--cyan)' }}>{info.active_model}</code>
+        </div>
+      )}
+
+      {/* How to switch */}
+      <div style={{ fontSize: '0.78rem', color: 'var(--text2)', marginBottom: '0.85rem', lineHeight: 1.7 }}>
+        Switch provider in <code>.env</code>:
+        <pre style={{ background: 'var(--surface3)', padding: '0.6rem', borderRadius: 6, margin: '0.4rem 0', fontSize: '0.76rem' }}>
+{`LLM_PROVIDER=openrouter   # cloud (needs OPENROUTER_API_KEY)
+LLM_PROVIDER=ollama       # local (needs Ollama running)`}
+        </pre>
+        Then restart the backend.
+      </div>
+
+      {/* Ollama — installed models */}
+      <div style={{ fontWeight: 600, fontSize: '0.82rem', marginBottom: '0.4rem' }}>Installed Ollama models</div>
+      {loading && <div style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>Checking…</div>}
+      {!loading && ollamaModels && !ollamaModels.ok && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--red, #f87171)', marginBottom: '0.5rem' }}>
+          {ollamaModels.error}
+        </div>
+      )}
+      {!loading && ollamaModels?.ok && (
+        ollamaModels.models.length === 0
+          ? <div style={{ fontSize: '0.75rem', color: 'var(--text3)', marginBottom: '0.5rem' }}>No models installed. Run: <code>ollama pull llama3.1</code></div>
+          : ollamaModels.models.map(m => (
+            <div key={m.name} style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.35rem 0.6rem', background: 'var(--surface2)',
+              borderRadius: 5, marginBottom: '0.3rem', fontSize: '0.78rem',
+            }}>
+              <code style={{ color: 'var(--cyan)', flex: 1 }}>{m.name}</code>
+              <span style={{ color: 'var(--text3)', fontSize: '0.7rem' }}>{m.size}</span>
+              {m.tools_support
+                ? <span style={{ fontSize: '0.65rem', color: '#22c55e' }}>✓ tools</span>
+                : <span style={{ fontSize: '0.65rem', color: 'var(--text3)' }}>no tools</span>}
+            </div>
+          ))
+      )}
+
+      {/* Supported models list */}
+      <div style={{ fontWeight: 600, fontSize: '0.82rem', margin: '0.85rem 0 0.4rem' }}>
+        Models with tool-calling support
+        <span style={{ fontWeight: 400, fontSize: '0.72rem', color: 'var(--text3)', marginLeft: '0.4rem' }}>
+          (pull any with <code>ollama pull &lt;name&gt;</code>)
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+        {supported.map(m => (
+          <span key={m.name} title={m.notes} style={{
+            background: 'var(--surface2)', border: '1px solid var(--border)',
+            borderRadius: 4, padding: '2px 8px', fontSize: '0.72rem',
+            color: 'var(--text2)', cursor: 'default',
+          }}>
+            {m.name} <span style={{ color: 'var(--text3)' }}>{m.size}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Settings() {
   const [connected, setConnected] = useState({})
   const [inputs, setInputs]       = useState({})
@@ -280,6 +369,8 @@ export default function Settings() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 640 }}>
+
+        <LLMProviderPanel />
 
         {/* Webhook info card */}
         <div className="card static" style={{ padding: '1.25rem' }}>

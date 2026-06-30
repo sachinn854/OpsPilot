@@ -21,12 +21,20 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     LOG_LEVEL: str = "info"
 
-    # --- OpenRouter (LLM) ---
+    # --- LLM provider selection ---
+    # "openrouter" → cloud via OpenRouter API
+    # "ollama"     → local models via Ollama (no API key needed)
+    LLM_PROVIDER: str = "openrouter"
+
+    # --- OpenRouter ---
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "anthropic/claude-haiku-4-5"
-    # Small free model used only for prompt-section classification (1-2 tokens output).
-    # Any free model on openrouter.ai works; default is Llama 3.1 8B (free tier).
+    # Small free model for prompt-section classification + chat title generation.
     CLASSIFIER_MODEL: str = "meta-llama/llama-3.1-8b-instruct:free"
+
+    # --- Ollama (local LLM) ---
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3.1"
 
     # --- JWT auth ---
     JWT_SECRET: str = "change-me-in-production-use-a-long-random-string"
