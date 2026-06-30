@@ -1,19 +1,23 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
 from backend.config import settings
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def _prepare(password: str) -> bytes:
+    # SHA-256 pre-hash avoids bcrypt's 72-byte limit
+    return hashlib.sha256(password.encode()).hexdigest().encode()
 
 
 def hash_password(password: str) -> str:
-    return _pwd.hash(password)
+    return bcrypt.hashpw(_prepare(password), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd.verify(plain, hashed)
+    return bcrypt.checkpw(_prepare(plain), hashed.encode())
 
 
 def create_access_token(user_id: str, email: str) -> str:
