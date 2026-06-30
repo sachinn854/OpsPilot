@@ -11,6 +11,8 @@ import asyncio
 import json
 from functools import lru_cache
 
+import httpx
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -32,19 +34,32 @@ _MAX_HISTORY = 40
 
 
 async def _auto_title(conv_id: str, user_msg: str, reply: str) -> None:
-    """Generate a smart title for a new conversation and persist it."""
+    """Generate a smart title for a new conversation using a free small model."""
     try:
-        llm = OpenRouterProvider()
-        resp = await llm.chat([{
-            "role": "user",
-            "content": (
-                "Write a short 4-6 word title for this conversation. "
-                "No quotes, no punctuation at end. Return only the title.\n"
-                f"User: {user_msg[:200]}\n"
-                f"Reply: {reply[:300]}"
-            ),
-        }])
-        title = (resp.content or "").strip().strip('"\'').strip()[:80]
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.CLASSIFIER_MODEL,
+                    "messages": [{
+                        "role": "user",
+                        "content": (
+                            "Write a short 4-6 word title for this conversation. "
+                            "No quotes, no punctuation at end. Return only the title.\n"
+                            f"User: {user_msg[:200]}\n"
+                            f"Reply: {reply[:300]}"
+                        ),
+                    }],
+                    "max_tokens": 20,
+                    "temperature": 0.3,
+                },
+            )
+        resp.raise_for_status()
+        title = (resp.json()["choices"][0]["message"]["content"] or "").strip().strip('"\'').strip()[:80]
         if not title:
             return
         async with AsyncSessionLocal() as s:
