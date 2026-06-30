@@ -149,15 +149,20 @@ async def _verify_token(service: str, token: str) -> dict | None:
 
 
 async def _verify_github(token: str) -> dict | None:
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(
-            "https://api.github.com/user",
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-        )
-    if resp.status_code != 200:
-        return None
-    d = resp.json()
-    return {"username": d.get("login"), "name": d.get("name"), "avatar_url": d.get("avatar_url")}
+        resp = await client.get("https://api.github.com/user", headers=headers)
+    if resp.status_code == 200:
+        d = resp.json()
+        return {"username": d.get("login"), "name": d.get("name"), "avatar_url": d.get("avatar_url")}
+    # Fine-grained PATs with repo-only scope return 403 on /user.
+    # Fall back to /rate_limit which any valid token can reach.
+    if resp.status_code == 403:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r2 = await client.get("https://api.github.com/rate_limit", headers=headers)
+        if r2.status_code == 200:
+            return {"username": "authenticated", "note": "fine-grained PAT (repo-scoped)"}
+    return None
 
 
 async def _verify_slack(token: str) -> dict | None:
