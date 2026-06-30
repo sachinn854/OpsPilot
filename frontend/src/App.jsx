@@ -7,6 +7,7 @@ import ToolsPanel from './components/ToolsPanel'
 import Documents from './components/Documents'
 import Chat from './components/Chat'
 import Settings from './components/Settings'
+import SlackFeatures from './components/SlackFeatures'
 import Login from './components/Login'
 import { authMe, clearAuth, deleteConversation, fetchConversations, getToken, getUser } from './api'
 import './App.css'
@@ -26,6 +27,7 @@ const NAV_BOTTOM = [
   { id: 'approvals', icon: '◈', label: 'Approvals', group: 'ops'  },
   { id: 'documents', icon: '⊡', label: 'Documents', group: 'ops'  },
   { id: 'tools',     icon: '⊙', label: 'Tools',     group: 'sys'  },
+  { id: 'slack',     icon: '#', label: 'Slack',      group: 'sys'  },
   { id: 'settings',  icon: '⚙', label: 'Settings',  group: 'sys'  },
 ]
 
@@ -252,6 +254,7 @@ export default function App() {
         {page === 'approvals' && <ApprovalPanel />}
         {page === 'documents' && <Documents />}
         {page === 'tools'     && <ToolsPanel />}
+        {page === 'slack'     && <SlackFeatures />}
         {page === 'settings'  && <Settings />}
       </main>
     </div>
