@@ -78,8 +78,21 @@ def _get_router():
 
 async def _get_copilot(user, session) -> CopilotAgent:
     """Create a Copilot agent with the user's preferred LLM provider + their API key."""
+    from fastapi import HTTPException
     from backend.integrations.store import get_token
-    api_key = await get_token(session, org_id="default", service="openrouter")
+
+    provider = (getattr(user, "llm_provider", "") or settings.LLM_PROVIDER).lower()
+
+    if provider != "ollama":
+        api_key = await get_token(session, org_id="default", service="openrouter")
+        if not api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="OpenRouter API key not set. Go to Settings → LLM Provider and add your key.",
+            )
+    else:
+        api_key = None
+
     return CopilotAgent(llm=get_llm_for_user(user, api_key=api_key), router=_get_router())
 
 
@@ -182,7 +195,16 @@ async def chat_stream(
     history.append({"role": "user", "content": req.message})
 
     from backend.integrations.store import get_token as _get_token
-    user_api_key = await _get_token(session, org_id="default", service="openrouter")
+    _provider = (getattr(current_user, "llm_provider", "") or settings.LLM_PROVIDER).lower()
+    if _provider != "ollama":
+        user_api_key = await _get_token(session, org_id="default", service="openrouter")
+        if not user_api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="OpenRouter API key not set. Go to Settings → LLM Provider and add your key.",
+            )
+    else:
+        user_api_key = None
 
     session.add(Message(conversation_id=conversation.id, role="user", content=req.message))
     await session.commit()

@@ -56,7 +56,9 @@ def get_llm_for_user(user, api_key: str | None = None) -> LLMProvider:
         return OllamaProvider(model=model or settings.OLLAMA_MODEL)
 
     from backend.llm.openrouter_provider import OpenRouterProvider
+    # api_key must come from user's DB token — no env fallback here
+    # (env fallback allowed only for system tasks like Celery workers)
     return OpenRouterProvider(
-        api_key=api_key or settings.OPENROUTER_API_KEY,
+        api_key=api_key or "",
         model=model or settings.OPENROUTER_MODEL,
     )

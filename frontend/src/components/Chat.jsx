@@ -265,7 +265,20 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
           </div>
         ))}
 
-        {error && <div className="error" style={{ margin: '0.5rem 0' }}>{error}</div>}
+        {error && (
+          <div className="error" style={{ margin: '0.5rem 0' }}>
+            {error}
+            {error.toLowerCase().includes('api key') && (
+              <span>
+                {' — '}
+                <a href="#settings" style={{ color: '#f87171', textDecoration: 'underline' }}
+                  onClick={e => { e.preventDefault(); window.location.hash = 'settings' }}>
+                  Go to Settings
+                </a>
+              </span>
+            )}
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
