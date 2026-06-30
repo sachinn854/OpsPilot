@@ -29,6 +29,13 @@ celery_app.conf.beat_schedule = {
         "args": [],
         "kwargs": {"services": ["api", "worker", "database"]},
     },
+    # Keyword alerts — scan every 15 minutes
+    "slack-keyword-scan": {
+        "task": "workers.scan_keyword_alerts",
+        "schedule": crontab(minute="*/15"),
+        "args": [],
+        "kwargs": {},
+    },
     # Slack digest — summarise all channel activity twice a day
     "slack-digest-morning": {
         "task": "workers.slack_channel_digest",

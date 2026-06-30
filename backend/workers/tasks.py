@@ -98,6 +98,143 @@ async def _check_services(services: list[str]) -> dict:
 # Slack channel digest
 # ---------------------------------------------------------------------------
 
+@celery_app.task(name="workers.scan_keyword_alerts", bind=True, max_retries=2)
+def scan_keyword_alerts(self) -> dict:
+    """Scan active Slack channels for keyword alerts and notify users."""
+    try:
+        result = asyncio.run(_run_keyword_scan())
+        logger.info("Keyword scan done: %s", result)
+        return result
+    except Exception as exc:
+        logger.error("Keyword scan failed: %s", exc)
+        raise self.retry(exc=exc, countdown=60)
+
+
+async def _run_keyword_scan() -> dict:
+    """Fetch all active keyword alerts, scan recent Slack messages, fire notifications."""
+    import httpx
+    from sqlalchemy import select
+
+    from backend.config import settings
+    from backend.db.models import SlackKeywordAlert, User
+    from backend.db.session import AsyncSessionLocal
+    from backend.workers.email_utils import send_email
+
+    SLACK_API = "https://slack.com/api"
+    lookback_minutes = 20  # scan messages from the last 20 minutes
+
+    async with AsyncSessionLocal() as session:
+        alerts = (await session.execute(
+            select(SlackKeywordAlert).where(SlackKeywordAlert.is_active == True)  # noqa: E712
+        )).scalars().all()
+
+    if not alerts:
+        return {"ok": True, "alerts_checked": 0, "matches": 0}
+
+    # Group alerts by org_id
+    by_org: dict[str, list] = {}
+    for a in alerts:
+        by_org.setdefault(a.org_id, []).append(a)
+
+    total_matches = 0
+
+    for org_id, org_alerts in by_org.items():
+        # Resolve token
+        slack_token: str | None = None
+        try:
+            from backend.integrations.store import get_token
+            async with AsyncSessionLocal() as session:
+                slack_token = await get_token(session, org_id=org_id, service="slack")
+        except Exception:
+            pass
+        slack_token = slack_token or settings.SLACK_TOKEN
+        if not slack_token:
+            continue
+
+        headers = {"Authorization": f"Bearer {slack_token}"}
+        since_ts = str((datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)).timestamp())
+
+        # Fetch channels
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(f"{SLACK_API}/conversations.list", headers=headers,
+                                  params={"limit": 200, "exclude_archived": "true",
+                                          "types": "public_channel,private_channel"})
+        channels = [c for c in r.json().get("channels", []) if c.get("is_member")]
+
+        # Fetch user info for DM delivery
+        async with AsyncSessionLocal() as session:
+            user = (await session.execute(
+                select(User).where(User.id == org_id)
+            )).scalar_one_or_none()
+
+        for alert in org_alerts:
+            watch_channels = [c.strip().lstrip("#") for c in alert.channels.split(",") if c.strip()]
+            target_channels = [c for c in channels
+                               if not watch_channels or c.get("name") in watch_channels]
+
+            for ch in target_channels:
+                async with httpx.AsyncClient(timeout=15) as client:
+                    r = await client.get(f"{SLACK_API}/conversations.history", headers=headers,
+                                          params={"channel": ch["id"], "oldest": since_ts, "limit": 50})
+                messages = r.json().get("messages", [])
+
+                matches = [m for m in messages
+                           if alert.keyword in (m.get("text") or "").lower()
+                           and m.get("type") == "message"]
+
+                if not matches:
+                    continue
+
+                total_matches += len(matches)
+                ch_name = ch.get("name", ch["id"])
+                preview = matches[0].get("text", "")[:200]
+                subject = f"Keyword alert: '{alert.keyword}' in #{ch_name}"
+                body = (
+                    f"Keyword '{alert.keyword}' was mentioned {len(matches)} time(s) "
+                    f"in #{ch_name} in the last {lookback_minutes} minutes.\n\n"
+                    f"Latest message preview:\n{preview}"
+                )
+
+                # Email notification
+                if user and alert.notify_via in ("email", "both"):
+                    recipient = user.digest_email_override.strip() or user.email
+                    send_email(recipient, subject, body)
+
+                # Slack DM notification
+                if user and alert.notify_via in ("dm", "both"):
+                    try:
+                        async with httpx.AsyncClient(timeout=15) as client:
+                            dm = await client.post(f"{SLACK_API}/conversations.open",
+                                                   headers={**headers, "Content-Type": "application/json"},
+                                                   json={"users": org_id})
+                        dm_ch = dm.json().get("channel", {}).get("id")
+                        if not dm_ch:
+                            # Try to find user's Slack ID by email
+                            if user:
+                                lu = await client.get(f"{SLACK_API}/users.lookupByEmail",
+                                                      headers=headers,
+                                                      params={"email": user.email})
+                                slack_uid = lu.json().get("user", {}).get("id")
+                                if slack_uid:
+                                    dm2 = await client.post(
+                                        f"{SLACK_API}/conversations.open",
+                                        headers={**headers, "Content-Type": "application/json"},
+                                        json={"users": slack_uid},
+                                    )
+                                    dm_ch = dm2.json().get("channel", {}).get("id")
+                        if dm_ch:
+                            async with httpx.AsyncClient(timeout=15) as client:
+                                await client.post(
+                                    f"{SLACK_API}/chat.postMessage",
+                                    headers={**headers, "Content-Type": "application/json"},
+                                    json={"channel": dm_ch, "text": f"🔔 *{subject}*\n{body}"},
+                                )
+                    except Exception as e:
+                        logger.warning("Could not send Slack DM for keyword alert: %s", e)
+
+    return {"ok": True, "alerts_checked": len(alerts), "matches": total_matches}
+
+
 @celery_app.task(name="workers.slack_channel_digest", bind=True, max_retries=2)
 def slack_channel_digest(self, org_id: str = "default", hours: int = 12) -> dict:
     """Read all Slack channels the bot is in, summarise activity via LLM,

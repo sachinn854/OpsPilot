@@ -258,3 +258,40 @@ class IntegrationToken(Base):
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+
+class SlackKeywordAlert(Base):
+    """A keyword to watch across Slack channels — fires email/DM when matched."""
+    __tablename__ = "slack_keyword_alerts"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    keyword: Mapped[str] = mapped_column(String(255))
+    # Comma-separated channel names to watch; empty string = all channels
+    channels: Mapped[str] = mapped_column(String(1024), default="")
+    # "email" | "dm" | "both"
+    notify_via: Mapped[str] = mapped_column(String(16), default="both")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class SlackEventTrigger(Base):
+    """An event trigger: when a Slack message matches, run an automatic action."""
+    __tablename__ = "slack_event_triggers"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    trigger_keyword: Mapped[str] = mapped_column(String(255))
+    # Channel to watch; empty = all channels
+    source_channel: Mapped[str] = mapped_column(String(255), default="")
+    # "create_github_issue" | "post_to_channel" | "run_copilot"
+    action_type: Mapped[str] = mapped_column(String(64))
+    # JSON-encoded config for the action (repo, target_channel, prompt, etc.)
+    action_config: Mapped[str] = mapped_column(Text, default="{}")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
