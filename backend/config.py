@@ -25,10 +25,11 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "anthropic/claude-haiku-4-5"
 
-    # --- API authentication ---
-    # Set a strong random string. When set, all requests must carry:
-    #   Authorization: Bearer <API_KEY>
-    # Leave empty in development to skip validation.
+    # --- JWT auth ---
+    JWT_SECRET: str = "change-me-in-production-use-a-long-random-string"
+    JWT_EXPIRE_DAYS: int = 30
+
+    # --- API authentication (legacy Bearer gate) ---
     API_KEY: str = ""
 
     # --- GitHub tool ---

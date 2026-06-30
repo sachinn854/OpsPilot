@@ -19,8 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.agents.copilot import CopilotAgent
 from backend.api.deps import get_registry, limiter
+from backend.auth.deps import get_current_user
 from backend.config import settings
-from backend.db.models import Conversation, Message
+from backend.db.models import Conversation, Message, User
 from backend.db.session import AsyncSessionLocal, get_session
 from backend.llm.openrouter_provider import OpenRouterProvider
 from backend.security.guardrails import check_injection
@@ -79,6 +80,7 @@ async def chat(
     req: ChatRequest,
     background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> ChatResponse:
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="message cannot be empty")
@@ -90,10 +92,10 @@ async def chat(
     is_new = not req.conversation_id
     if req.conversation_id:
         conversation = await session.get(Conversation, req.conversation_id)
-        if conversation is None:
+        if conversation is None or conversation.org_id != current_user.id:
             raise HTTPException(status_code=404, detail="conversation not found")
     else:
-        conversation = Conversation(title=req.message[:50])
+        conversation = Conversation(org_id=current_user.id, title=req.message[:50])
         session.add(conversation)
         await session.flush()
 
@@ -131,6 +133,7 @@ async def chat_stream(
     request: Request,
     req: ChatRequest,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="message cannot be empty")
@@ -142,10 +145,10 @@ async def chat_stream(
     is_new = not req.conversation_id
     if req.conversation_id:
         conversation = await session.get(Conversation, req.conversation_id)
-        if conversation is None:
+        if conversation is None or conversation.org_id != current_user.id:
             raise HTTPException(status_code=404, detail="conversation not found")
     else:
-        conversation = Conversation(title=req.message[:50])
+        conversation = Conversation(org_id=current_user.id, title=req.message[:50])
         session.add(conversation)
         await session.flush()
 
