@@ -9,16 +9,52 @@ const SERVICES = [
     description: 'Connect your GitHub account to access repos, issues, PRs, and code.',
     placeholder: 'ghp_xxxxxxxxxxxxxxxxxxxx',
     docsUrl: 'https://github.com/settings/tokens',
-    docsLabel: 'Generate a token →',
+    guide: {
+      title: 'How to get a GitHub Personal Access Token',
+      steps: [
+        { text: 'Open GitHub → click your avatar (top-right) → Settings' },
+        { text: 'Scroll down → click Developer settings → Personal access tokens → Tokens (classic)' },
+        { text: 'Click "Generate new token (classic)" → add a note (e.g. OpsPilot)' },
+        {
+          text: 'Select scopes:',
+          chips: ['repo', 'read:org', 'read:user', 'workflow'],
+        },
+        { text: 'Click "Generate token" → copy the token immediately (shown only once)' },
+        { text: 'Paste it in the field above → click Connect' },
+      ],
+      note: 'Fine-grained PATs also work — grant repo + metadata read permissions for the repos you want the copilot to access.',
+    },
   },
   {
     id: 'slack',
     label: 'Slack',
     icon: '◈',
-    description: 'Connect Slack to send messages and alerts to your workspace.',
-    placeholder: 'xoxb-xxxxxxxxxxxx',
+    description: 'Connect Slack to send messages, read channels, DM teammates, and more.',
+    placeholder: 'xoxb-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx',
     docsUrl: 'https://api.slack.com/apps',
-    docsLabel: 'Create a Slack app →',
+    guide: {
+      title: 'How to create a Slack Bot Token',
+      steps: [
+        {
+          text: 'Go to api.slack.com/apps → click "Create New App"',
+          link: { label: 'Open Slack App Directory →', url: 'https://api.slack.com/apps' },
+        },
+        { text: 'Choose "From scratch" → enter a name (e.g. OpsPilot) → select your workspace → click Create App' },
+        { text: 'In the left sidebar click "OAuth & Permissions"' },
+        {
+          text: 'Scroll to "Bot Token Scopes" → click "Add an OAuth Scope" and add all of these:',
+          chips: [
+            'channels:read', 'channels:write', 'chat:write', 'chat:write.customize',
+            'files:write', 'groups:read', 'im:write', 'mpim:write',
+            'pins:write', 'reactions:write', 'search:read', 'users:read', 'users:read.email',
+          ],
+        },
+        { text: 'Scroll back up → click "Install to Workspace" → click Allow' },
+        { text: 'Under "OAuth Tokens for Your Workspace", copy the Bot User OAuth Token (starts with xoxb-)' },
+        { text: 'Paste it in the field above → click Connect' },
+      ],
+      note: 'Keep this token secret — it has access to your Slack workspace. You can revoke it anytime from the Slack App settings.',
+    },
   },
   {
     id: 'jira',
@@ -27,7 +63,19 @@ const SERVICES = [
     description: 'Connect Jira to manage tickets and sprints.',
     placeholder: 'your-jira-api-token',
     docsUrl: 'https://id.atlassian.com/manage-profile/security/api-tokens',
-    docsLabel: 'Generate Atlassian token →',
+    guide: {
+      title: 'How to get a Jira API Token',
+      steps: [
+        {
+          text: 'Go to id.atlassian.com → click "Security" → "Create and manage API tokens"',
+          link: { label: 'Open Atlassian API Tokens →', url: 'https://id.atlassian.com/manage-profile/security/api-tokens' },
+        },
+        { text: 'Click "Create API token" → enter a label (e.g. OpsPilot) → click Create' },
+        { text: 'Copy the token immediately (shown only once)' },
+        { text: 'Paste it in the field above → click Connect' },
+      ],
+      note: 'This token is tied to your Atlassian account and works across all Jira/Confluence projects you have access to.',
+    },
   },
   {
     id: 'linear',
@@ -36,16 +84,94 @@ const SERVICES = [
     description: 'Connect Linear to track issues and roadmap.',
     placeholder: 'lin_api_xxxxxxxxxxxx',
     docsUrl: 'https://linear.app/settings/api',
-    docsLabel: 'Generate Linear token →',
+    guide: {
+      title: 'How to get a Linear API Key',
+      steps: [
+        {
+          text: 'Go to linear.app → Settings → API → Personal API keys',
+          link: { label: 'Open Linear API Settings →', url: 'https://linear.app/settings/api' },
+        },
+        { text: 'Click "Create new API key" → enter a label (e.g. OpsPilot) → click Create' },
+        { text: 'Copy the key immediately (starts with lin_api_)' },
+        { text: 'Paste it in the field above → click Connect' },
+      ],
+    },
   },
 ]
 
+function TokenGuide({ guide, onClose }) {
+  return (
+    <div style={{
+      marginTop: '0.85rem',
+      background: 'var(--surface2)',
+      border: '1px solid var(--border2)',
+      borderRadius: 8,
+      padding: '1rem 1.1rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+        <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text)' }}>
+          📖 {guide.title}
+        </div>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: '1rem', lineHeight: 1, padding: '0 2px' }}
+        >×</button>
+      </div>
+
+      <ol style={{ margin: 0, paddingLeft: '1.3rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+        {guide.steps.map((step, i) => (
+          <li key={i} style={{ fontSize: '0.8rem', color: 'var(--text2)', lineHeight: 1.6 }}>
+            <span>{step.text}</span>
+            {step.link && (
+              <span> <a
+                href={step.link.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}
+              >{step.link.label}</a></span>
+            )}
+            {step.chips && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.35rem' }}>
+                {step.chips.map(chip => (
+                  <code key={chip} style={{
+                    background: 'var(--surface3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 4,
+                    padding: '1px 7px',
+                    fontSize: '0.73rem',
+                    color: 'var(--cyan)',
+                    fontFamily: 'monospace',
+                  }}>{chip}</code>
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+
+      {guide.note && (
+        <div style={{
+          marginTop: '0.75rem',
+          paddingTop: '0.65rem',
+          borderTop: '1px solid var(--border)',
+          fontSize: '0.74rem',
+          color: 'var(--text3)',
+          lineHeight: 1.6,
+        }}>
+          💡 {guide.note}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Settings() {
-  const [connected, setConnected] = useState({})   // { github: { username, ... }, ... }
-  const [inputs, setInputs]       = useState({})   // { github: 'ghp_...' }
-  const [busy, setBusy]           = useState({})   // { github: true }
+  const [connected, setConnected] = useState({})
+  const [inputs, setInputs]       = useState({})
+  const [busy, setBusy]           = useState({})
   const [errors, setErrors]       = useState({})
   const [success, setSuccess]     = useState({})
+  const [showGuide, setShowGuide] = useState({})
 
   useEffect(() => { loadConnected() }, [])
 
@@ -208,38 +334,55 @@ export default function Settings() {
 
               {/* Token input (shown when disconnected) */}
               {!isConnected && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
-                  <div className="field" style={{ flex: 1, marginBottom: 0 }}>
-                    <input
-                      type="password"
-                      placeholder={svc.placeholder}
-                      value={inputs[svc.id] || ''}
-                      onChange={e => setInputs(i => ({ ...i, [svc.id]: e.target.value }))}
-                      onKeyDown={e => e.key === 'Enter' && handleConnect(svc.id)}
-                      disabled={isBusy}
-                    />
+                <>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+                    <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+                      <input
+                        type="password"
+                        placeholder={svc.placeholder}
+                        value={inputs[svc.id] || ''}
+                        onChange={e => setInputs(i => ({ ...i, [svc.id]: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && handleConnect(svc.id)}
+                        disabled={isBusy}
+                      />
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      style={{ flexShrink: 0, alignSelf: 'flex-end', marginBottom: '1.1rem', padding: '0.55rem 1rem' }}
+                      disabled={isBusy || !inputs[svc.id]?.trim()}
+                      onClick={() => handleConnect(svc.id)}
+                    >
+                      {isBusy
+                        ? <><div className="spinner" style={{ borderTopColor: '#fff' }} /> Connecting…</>
+                        : 'Connect'}
+                    </button>
                   </div>
-                  <button
-                    className="btn btn-primary"
-                    style={{ flexShrink: 0, alignSelf: 'flex-end', marginBottom: '1.1rem', padding: '0.55rem 1rem' }}
-                    disabled={isBusy || !inputs[svc.id]?.trim()}
-                    onClick={() => handleConnect(svc.id)}
-                  >
-                    {isBusy
-                      ? <><div className="spinner" style={{ borderTopColor: '#fff' }} /> Connecting…</>
-                      : 'Connect'}
-                  </button>
-                </div>
-              )}
 
-              {/* Docs link */}
-              {!isConnected && (
-                <div style={{ fontSize: '0.73rem', color: 'var(--text3)', marginTop: '0.3rem' }}>
-                  <a href={svc.docsUrl} target="_blank" rel="noreferrer"
-                    style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-                    {svc.docsLabel}
-                  </a>
-                </div>
+                  {/* Guide toggle */}
+                  {svc.guide && (
+                    <div style={{ marginTop: '0.1rem' }}>
+                      <button
+                        onClick={() => setShowGuide(g => ({ ...g, [svc.id]: !g[svc.id] }))}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: showGuide[svc.id] ? 'var(--accent)' : 'var(--text3)',
+                          fontSize: '0.75rem', padding: 0, fontFamily: 'Inter, sans-serif',
+                          display: 'flex', alignItems: 'center', gap: '0.3rem',
+                          transition: 'color 0.15s',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.85rem' }}>{showGuide[svc.id] ? '▾' : '▸'}</span>
+                        Where do I get this token?
+                      </button>
+                      {showGuide[svc.id] && (
+                        <TokenGuide
+                          guide={svc.guide}
+                          onClose={() => setShowGuide(g => ({ ...g, [svc.id]: false }))}
+                        />
+                      )}
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Success / error messages */}
