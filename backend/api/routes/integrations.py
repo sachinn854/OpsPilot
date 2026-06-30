@@ -12,7 +12,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.deps import limiter
+from backend.auth.deps import get_current_user
 from backend.config import settings
+from backend.db.models import User
 from backend.db.session import get_session
 from backend.integrations.store import (
     SUPPORTED_SERVICES,
@@ -21,7 +23,6 @@ from backend.integrations.store import (
     list_connected,
     save_token,
 )
-from backend.security.rbac import Role, require_role
 
 router = APIRouter(prefix="/v1/integrations", tags=["integrations"])
 
@@ -75,7 +76,7 @@ async def save_integration(
     service: str,
     req: SaveTokenRequest,
     session: AsyncSession = Depends(get_session),
-    _role: Role = require_role(Role.operator),
+    _user: User = Depends(get_current_user),
 ) -> ConnectedService:
     """Save or replace a service token for the current org."""
     _validate_service(service)
@@ -97,7 +98,7 @@ async def disconnect_integration(
     request: Request,
     service: str,
     session: AsyncSession = Depends(get_session),
-    _role: Role = require_role(Role.operator),
+    _user: User = Depends(get_current_user),
 ) -> dict:
     """Disconnect a service by deleting its stored token."""
     _validate_service(service)
