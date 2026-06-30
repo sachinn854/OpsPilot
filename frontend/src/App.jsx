@@ -64,7 +64,7 @@ export default function App() {
     let cancelled = false
     async function check() {
       try {
-        const r = await fetch('/v1/../health', { signal: AbortSignal.timeout(5000) })
+        const r = await fetch(`${import.meta.env.VITE_API_URL || ''}/health`, { signal: AbortSignal.timeout(5000) })
         if (!cancelled) setOnline(r.ok)
       } catch { if (!cancelled) setOnline(false) }
     }
