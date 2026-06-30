@@ -1,11 +1,12 @@
 """
 LLM provider management endpoints.
 
-GET   /v1/llm/config            — user's current provider + model (with env fallback)
-PATCH /v1/llm/config            — save user's provider + model preference
-GET   /v1/llm/providers         — available providers info
-GET   /v1/llm/ollama/models     — models installed in local Ollama instance
-GET   /v1/llm/ollama/supported  — full list of models known to support tool-calling
+GET   /v1/llm/config                  — user's current provider + model
+PATCH /v1/llm/config                  — save user's provider + model preference
+DELETE /v1/llm/config                 — reset to system default
+GET   /v1/llm/openrouter/models       — fetch available models from OpenRouter (uses user's key)
+GET   /v1/llm/ollama/models           — models installed in local Ollama
+GET   /v1/llm/ollama/supported        — full list of models known to support tool-calling
 """
 import httpx
 from fastapi import APIRouter, Depends
@@ -71,6 +72,54 @@ async def reset_llm_config(
     current_user.llm_model    = ""
     await session.commit()
     return {"ok": True, "message": "Reset to system default"}
+
+
+@router.get("/openrouter/models")
+async def list_openrouter_models(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Fetch available OpenRouter models using the user's own API key."""
+    # Try user's saved key first, fall back to env
+    from backend.integrations.store import get_token
+    api_key = await get_token(session, org_id="default", service="openrouter")
+    api_key = api_key or settings.OPENROUTER_API_KEY
+
+    if not api_key:
+        return {"ok": False, "error": "No OpenRouter API key. Add your key in Settings → Integrations."}
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                "https://openrouter.ai/api/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+        resp.raise_for_status()
+        raw = resp.json().get("data", [])
+
+        models = []
+        for m in raw:
+            ctx    = m.get("context_length", 0)
+            pricing = m.get("pricing", {})
+            models.append({
+                "id":             m.get("id", ""),
+                "name":           m.get("name", ""),
+                "context_length": ctx,
+                "prompt_price":   pricing.get("prompt", "0"),
+                "completion_price": pricing.get("completion", "0"),
+                "supports_tools": bool(m.get("supported_parameters", {}).get("tools")),
+            })
+
+        # Sort: tool-supporting first, then by name
+        models.sort(key=lambda m: (not m["supports_tools"], m["name"].lower()))
+        return {"ok": True, "models": models, "total": len(models)}
+
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 401:
+            return {"ok": False, "error": "Invalid API key. Check your OpenRouter key in Settings."}
+        return {"ok": False, "error": f"OpenRouter error: {exc.response.status_code}"}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 @router.get("/providers")

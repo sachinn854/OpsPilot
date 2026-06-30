@@ -76,9 +76,11 @@ def _get_router():
     return build_default_router()
 
 
-def _get_copilot(user) -> CopilotAgent:
-    """Create a Copilot agent with the user's preferred LLM provider."""
-    return CopilotAgent(llm=get_llm_for_user(user), router=_get_router())
+async def _get_copilot(user, session) -> CopilotAgent:
+    """Create a Copilot agent with the user's preferred LLM provider + their API key."""
+    from backend.integrations.store import get_token
+    api_key = await get_token(session, org_id="default", service="openrouter")
+    return CopilotAgent(llm=get_llm_for_user(user, api_key=api_key), router=_get_router())
 
 
 class ChatRequest(BaseModel):
@@ -128,7 +130,7 @@ async def chat(
     session.add(Message(conversation_id=conversation.id, role="user", content=req.message))
 
     try:
-        reply = await _get_copilot(current_user).run(history, user_name=current_user.name or current_user.email)
+        reply = await (await _get_copilot(current_user, session)).run(history, user_name=current_user.name or current_user.email)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
@@ -179,16 +181,20 @@ async def chat_stream(
     history = [{"role": m.role, "content": m.content} for m in reversed(result.scalars().all())]
     history.append({"role": "user", "content": req.message})
 
+    from backend.integrations.store import get_token as _get_token
+    user_api_key = await _get_token(session, org_id="default", service="openrouter")
+
     session.add(Message(conversation_id=conversation.id, role="user", content=req.message))
     await session.commit()
-    conv_id = conversation.id
+    conv_id  = conversation.id
     user_msg = req.message
+    copilot  = CopilotAgent(llm=get_llm_for_user(current_user, api_key=user_api_key), router=_get_router())
 
     async def event_stream():
         yield _sse({"event": "start", "conversation_id": conv_id})
         final_text = ""
         try:
-            async for ev in _get_copilot(current_user).run_stream(history, user_name=current_user.name or current_user.email):
+            async for ev in copilot.run_stream(history, user_name=current_user.name or current_user.email):
                 if ev["type"] == "tool":
                     yield _sse({"event": "tool", "name": ev["name"]})
                 elif ev["type"] == "token":

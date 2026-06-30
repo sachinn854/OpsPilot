@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.models import IntegrationToken
 from backend.integrations.encrypt import decrypt_token, encrypt_token
 
-SUPPORTED_SERVICES = {"github", "slack", "jira", "linear", "pagerduty"}
+SUPPORTED_SERVICES = {"github", "slack", "jira", "linear", "pagerduty", "openrouter"}
 
 
 async def save_token(

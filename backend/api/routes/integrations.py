@@ -142,6 +142,8 @@ async def _verify_token(service: str, token: str) -> dict | None:
             return await _verify_github(token)
         if service == "slack":
             return await _verify_slack(token)
+        if service == "openrouter":
+            return await _verify_openrouter(token)
         # For other services just accept the token (no live verification yet)
         return {"note": "token accepted (no live verify)"}
     except Exception:
@@ -163,6 +165,23 @@ async def _verify_github(token: str) -> dict | None:
         if r2.status_code == 200:
             return {"username": "authenticated", "note": "fine-grained PAT (repo-scoped)"}
     return None
+
+
+async def _verify_openrouter(token: str) -> dict | None:
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://openrouter.ai/api/v1/auth/key",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    if resp.status_code != 200:
+        return None
+    d = resp.json().get("data", {})
+    return {
+        "label":        d.get("label", ""),
+        "usage":        d.get("usage", 0),
+        "limit":        d.get("limit"),
+        "rate_limited": d.get("rate_limited", False),
+    }
 
 
 async def _verify_slack(token: str) -> dict | None:

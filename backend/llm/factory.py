@@ -40,8 +40,23 @@ def get_llm_provider(provider: str | None = None, model: str | None = None) -> L
     return OpenRouterProvider(model=model or settings.OPENROUTER_MODEL)
 
 
-def get_llm_for_user(user) -> LLMProvider:
-    """Return the LLM provider configured for a specific user (with env fallback)."""
+def get_llm_for_user(user, api_key: str | None = None) -> LLMProvider:
+    """
+    Return the LLM provider configured for a specific user (with env fallback).
+    api_key — caller should pass the user's decrypted OpenRouter key from DB.
+    """
     provider = getattr(user, "llm_provider", "") or None
     model    = getattr(user, "llm_model", "") or None
-    return get_llm_provider(provider=provider, model=model)
+
+    from backend.config import settings
+    name = (provider or settings.LLM_PROVIDER).lower().strip()
+
+    if name == "ollama":
+        from backend.llm.ollama_provider import OllamaProvider
+        return OllamaProvider(model=model or settings.OLLAMA_MODEL)
+
+    from backend.llm.openrouter_provider import OpenRouterProvider
+    return OpenRouterProvider(
+        api_key=api_key or settings.OPENROUTER_API_KEY,
+        model=model or settings.OPENROUTER_MODEL,
+    )
