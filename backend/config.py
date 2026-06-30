@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
     LOG_LEVEL: str = "info"
+    # Comma-separated allowed CORS origins (add your Railway frontend URL here)
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
     # --- LLM provider selection ---
     # "openrouter" → cloud via OpenRouter API

@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { fetchConversationMessages, getToken } from '../api'
 
+const API_ROOT = import.meta.env.VITE_API_URL || ''
+
 function Avatar() {
   return (
     <div style={{
@@ -112,7 +114,7 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
     abortRef.current = controller
 
     try {
-      const res = await fetch('/v1/chat/stream', {
+      const res = await fetch(`${API_ROOT}/v1/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,0 +1,23 @@
+[build]
+builder = "dockerfile"
+
+# Backend service — root service
+[[services]]
+name = "backend"
+dockerfilePath = "backend/Dockerfile"
+buildContext = "."
+
+[services.deploy]
+startCommand = "/start.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "frontend"
+dockerfilePath = "frontend/Dockerfile"
+buildContext = "frontend"
+
+[services.deploy]
+healthcheckPath = "/"
