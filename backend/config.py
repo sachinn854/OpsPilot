@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     SLACK_TOKEN: str = ""
     # Slack App-Level Token (xapp-...) — required for Socket Mode (bidirectional bot).
     SLACK_APP_TOKEN: str = ""
+    # Slack Signing Secret — used to verify interactive payloads (from Slack app Basic Info).
+    SLACK_SIGNING_SECRET: str = ""
     # Secret for verifying GitHub webhook signatures (X-Hub-Signature-256).
     # Generate any strong random string and paste it into the GitHub webhook settings.
     GITHUB_WEBHOOK_SECRET: str = ""
