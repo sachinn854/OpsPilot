@@ -13,6 +13,7 @@ from backend.prompts.sections.slack import SLACK_SECTION
 from backend.prompts.sections.rag import RAG_SECTION
 from backend.prompts.sections.ops import OPS_SECTION
 from backend.prompts.sections.monitoring import MONITORING_SECTION
+from backend.prompts.sections.workflows import WORKFLOWS_SECTION
 
 # ── 1. Tool-presence map ──────────────────────────────────────────────────────
 # Which tool-name substring → which section
@@ -24,6 +25,10 @@ _TOOL_TRIGGERS: list[tuple[str, str]] = [
     ("restart_service",     OPS_SECTION),
     ("get_service_health",  MONITORING_SECTION),
     ("get_metrics",         MONITORING_SECTION),
+    ("generate_standup",    WORKFLOWS_SECTION),
+    ("notify_stale_prs",    WORKFLOWS_SECTION),
+    ("broadcast_incident",  WORKFLOWS_SECTION),
+    ("notify_pr_stake",     WORKFLOWS_SECTION),
 ]
 
 # ── 2. Keyword map ────────────────────────────────────────────────────────────
@@ -56,6 +61,14 @@ _KEYWORD_MAP: list[tuple[frozenset[str], str]] = [
         "deploy", "deployment", "rollout", "service down",
         "bring down", "bring up", "revert deploy",
     ]), OPS_SECTION),
+
+    (frozenset([
+        "standup", "stand up", "daily summary", "morning report", "aaj kya hua",
+        "stale pr", "pr reminder", "review reminder", "chase karo",
+        "incident", "production down", "prod down", "outage", "kuch toot gaya",
+        "sabko bolo", "notify everyone", "pr stakeholders", "contributors ko",
+        "pr merge ho gaya", "notify team",
+    ]), WORKFLOWS_SECTION),
 
     (frozenset([
         "service health", "check health", "metrics", "cpu usage",

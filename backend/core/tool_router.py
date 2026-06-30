@@ -76,6 +76,12 @@ def build_default_router() -> "ToolRouter":
     )
     from backend.tools.ops import RestartServiceTool, RollbackDeploymentTool
     from backend.tools.rag import RagSearchTool
+    from backend.tools.workflows import (
+        BroadcastIncidentTool,
+        GenerateStandupTool,
+        NotifyPRStakeholdersTool,
+        NotifyStalePRsTool,
+    )
     from backend.tools.slack import (
         SlackAddReactionTool,
         SlackCreateChannelTool,
@@ -154,6 +160,11 @@ def build_default_router() -> "ToolRouter":
             # Ops (sensitive — HITL)
             RollbackDeploymentTool(),
             RestartServiceTool(),
+            # Cross-service workflows
+            GenerateStandupTool(),
+            NotifyStalePRsTool(),
+            BroadcastIncidentTool(),
+            NotifyPRStakeholdersTool(),
         ]
     )
 
