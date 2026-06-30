@@ -45,6 +45,9 @@ httpx==0.28.1
 # --- Slack bot (Socket Mode bidirectional bot) ---
 slack-bolt>=1.21.0
 
+# --- Utility tools ---
+duckduckgo-search>=6.0.0
+
 # --- Token encryption (integrations store) ---
 cryptography>=42.0.0
 

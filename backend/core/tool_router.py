@@ -82,6 +82,8 @@ def build_default_router() -> "ToolRouter":
         NotifyPRStakeholdersTool,
         NotifyStalePRsTool,
     )
+    from backend.tools.utils import CalculatorTool, DateTimeTool, TimezoneConverterTool
+    from backend.tools.web_search import WebSearchTool
     from backend.tools.slack import (
         SlackAddReactionTool,
         SlackCreateChannelTool,
@@ -160,6 +162,11 @@ def build_default_router() -> "ToolRouter":
             # Ops (sensitive — HITL)
             RollbackDeploymentTool(),
             RestartServiceTool(),
+            # Utility tools
+            CalculatorTool(),
+            DateTimeTool(),
+            TimezoneConverterTool(),
+            WebSearchTool(),
             # Cross-service workflows
             GenerateStandupTool(),
             NotifyStalePRsTool(),
