@@ -169,17 +169,7 @@ async def _verify_github(token: str) -> dict | None:
 
 
 async def _verify_openrouter(token: str) -> dict | None:
-    # /models works with any valid OpenRouter key (free or paid)
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(
-            "https://openrouter.ai/api/v1/models",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-    if resp.status_code == 200:
-        return {"models_available": len(resp.json().get("data", []))}
-    if resp.status_code == 401:
-        return None
-    # 429 / 5xx — accept now, real failure will surface on first chat call
+    # Accept any non-empty key — real validation happens on first chat call
     return {"note": "accepted"}
 
 
