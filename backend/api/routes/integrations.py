@@ -145,7 +145,10 @@ async def _verify_token(service: str, token: str) -> dict | None:
             return await _verify_slack(token)
         if service == "openrouter":
             return await _verify_openrouter(token)
-        # For other services just accept the token (no live verification yet)
+        if service == "jira":
+            return await _verify_jira(token)
+        if service == "linear":
+            return await _verify_linear(token)
         return {"note": "token accepted (no live verify)"}
     except Exception:
         return None
@@ -171,6 +174,46 @@ async def _verify_github(token: str) -> dict | None:
 async def _verify_openrouter(token: str) -> dict | None:
     # Accept any non-empty key — real validation happens on first chat call
     return {"note": "accepted"}
+
+
+async def _verify_jira(token: str) -> dict | None:
+    import base64
+    import json
+    try:
+        cfg = json.loads(token)
+    except Exception:
+        return None
+    if not all(k in cfg for k in ("api_token", "email", "domain")):
+        return None
+    domain = cfg["domain"].rstrip("/")
+    if not domain.startswith("http"):
+        domain = f"https://{domain}"
+    creds = base64.b64encode(f"{cfg['email']}:{cfg['api_token']}".encode()).decode()
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            f"{domain}/rest/api/3/myself",
+            headers={"Authorization": f"Basic {creds}", "Accept": "application/json"},
+        )
+    if resp.status_code == 200:
+        d = resp.json()
+        return {"display_name": d.get("displayName"), "email": d.get("emailAddress"), "domain": cfg["domain"]}
+    return None
+
+
+async def _verify_linear(token: str) -> dict | None:
+    query = "query { viewer { id name email } }"
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(
+            "https://api.linear.app/graphql",
+            headers={"Authorization": token, "Content-Type": "application/json"},
+            json={"query": query},
+        )
+    if resp.status_code == 200:
+        d = resp.json()
+        viewer = d.get("data", {}).get("viewer", {})
+        if viewer:
+            return {"name": viewer.get("name"), "email": viewer.get("email")}
+    return None
 
 
 async def _verify_slack(token: str) -> dict | None:

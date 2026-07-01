@@ -19,6 +19,9 @@ from backend.core.orchestrator import Orchestrator
 from backend.llm.factory import get_llm_provider
 from backend.mcp.registry import ToolRegistry
 from backend.mcp.servers.github_server import GitHubServer
+from backend.mcp.servers.google_server import GoogleServer
+from backend.mcp.servers.jira_server import JiraServer
+from backend.mcp.servers.linear_server import LinearServer
 from backend.mcp.servers.monitoring_server import MonitoringServer
 from backend.mcp.servers.ops_server import OpsServer
 from backend.mcp.servers.rag_server import RagServer
@@ -45,6 +48,9 @@ def get_registry() -> ToolRegistry:
             SlackServer(),
             SearchServer(),
             MonitoringServer(),
+            JiraServer(),
+            LinearServer(),
+            GoogleServer(),
         ],
         enabled=enabled,
     )

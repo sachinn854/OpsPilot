@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "anthropic/claude-haiku-4-5"
     # Small free model for prompt-section classification + chat title generation.
-    CLASSIFIER_MODEL: str = "meta-llama/llama-3.1-8b-instruct:free"
+    CLASSIFIER_MODEL: str = "google/gemma-4-31b-it:free"
 
     # --- Ollama (local LLM) ---
     OLLAMA_BASE_URL: str = "http://localhost:11434"
@@ -101,7 +101,7 @@ class Settings(BaseSettings):
 
     # --- MCP tool registry ---
     # Comma-separated server names to enable, or "all" for everything.
-    TOOLS_ENABLED: str = "github,rag,ops,slack,search,monitoring"
+    TOOLS_ENABLED: str = "github,rag,ops,slack,search,monitoring,jira,linear,google"
 
     # --- Email (SMTP) ---
     SMTP_HOST: str = ""            # e.g. smtp.gmail.com
@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""            # sender address
     SMTP_PASSWORD: str = ""        # app password (Gmail) or API key (SendGrid)
     SMTP_FROM_NAME: str = "OpsPilot"
+
+    # --- Google OAuth2 ---
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/v1/integrations/google/callback"
 
     # --- LangSmith tracing (optional) ---
     LANGSMITH_API_KEY: str = ""

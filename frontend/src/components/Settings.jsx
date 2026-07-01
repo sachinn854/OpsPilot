@@ -3,6 +3,24 @@ import { apiFetch } from '../api'
 
 const SERVICES = [
   {
+    id: 'google',
+    label: 'Google Workspace',
+    icon: '⊗',
+    description: 'Connect Gmail, Calendar, Drive, Sheets and Meet with a single Google login.',
+    oauthFlow: true,
+    guide: {
+      title: 'What you get after connecting',
+      steps: [
+        { text: 'Gmail — read, search, send emails and create drafts', chips: ['gmail_list_emails', 'gmail_send_email', 'gmail_search_emails'] },
+        { text: 'Calendar — list events, find free slots, create events', chips: ['calendar_list_events', 'calendar_find_free_slot', 'calendar_create_event'] },
+        { text: 'Meet — create meetings with Google Meet link automatically', chips: ['calendar_create_meeting'] },
+        { text: 'Drive — search and read files, Google Docs, PDFs', chips: ['drive_search_files', 'drive_read_file'] },
+        { text: 'Sheets — read ranges, append rows, update cells', chips: ['sheets_read_range', 'sheets_append_row'] },
+      ],
+      note: 'All write actions (send email, create meeting, update sheet) require HITL approval before executing.',
+    },
+  },
+  {
     id: 'github',
     label: 'GitHub',
     icon: '⊙',
@@ -61,7 +79,12 @@ const SERVICES = [
     label: 'Jira',
     icon: '⊞',
     description: 'Connect Jira to manage tickets and sprints.',
-    placeholder: 'your-jira-api-token',
+    multiField: true,
+    fields: [
+      { key: 'domain', label: 'Workspace domain', placeholder: 'yourcompany.atlassian.net', type: 'text' },
+      { key: 'email', label: 'Atlassian account email', placeholder: 'you@company.com', type: 'email' },
+      { key: 'api_token', label: 'API token', placeholder: 'ATATT3xFfGF0...', type: 'password' },
+    ],
     docsUrl: 'https://id.atlassian.com/manage-profile/security/api-tokens',
     guide: {
       title: 'How to get a Jira API Token',
@@ -72,7 +95,7 @@ const SERVICES = [
         },
         { text: 'Click "Create API token" → enter a label (e.g. OpsPilot) → click Create' },
         { text: 'Copy the token immediately (shown only once)' },
-        { text: 'Paste it in the field above → click Connect' },
+        { text: 'Enter your workspace domain (e.g. yourcompany.atlassian.net), your email, and paste the token above → click Connect' },
       ],
       note: 'This token is tied to your Atlassian account and works across all Jira/Confluence projects you have access to.',
     },
@@ -432,6 +455,7 @@ function LLMProviderPanel() {
 export default function Settings() {
   const [connected, setConnected] = useState({})
   const [inputs, setInputs]       = useState({})
+  const [multiInputs, setMultiInputs] = useState({})
   const [busy, setBusy]           = useState({})
   const [errors, setErrors]       = useState({})
   const [success, setSuccess]     = useState({})
@@ -483,8 +507,22 @@ export default function Settings() {
   }
 
   async function handleConnect(serviceId) {
-    const token = (inputs[serviceId] || '').trim()
-    if (!token) return
+    const svc = SERVICES.find(s => s.id === serviceId)
+    let token
+    if (svc?.multiField) {
+      const fields = multiInputs[serviceId] || {}
+      const missing = svc.fields.find(f => !fields[f.key]?.trim())
+      if (missing) {
+        setErrors(er => ({ ...er, [serviceId]: `Please fill in: ${missing.label}` }))
+        return
+      }
+      const payload = {}
+      svc.fields.forEach(f => { payload[f.key] = fields[f.key].trim() })
+      token = JSON.stringify(payload)
+    } else {
+      token = (inputs[serviceId] || '').trim()
+      if (!token) return
+    }
     setBusy(b => ({ ...b, [serviceId]: true }))
     setErrors(e => ({ ...e, [serviceId]: '' }))
     setSuccess(s => ({ ...s, [serviceId]: '' }))
@@ -496,6 +534,7 @@ export default function Settings() {
       })
       setConnected(c => ({ ...c, [serviceId]: result }))
       setInputs(i => ({ ...i, [serviceId]: '' }))
+      setMultiInputs(m => ({ ...m, [serviceId]: {} }))
       setSuccess(s => ({ ...s, [serviceId]: 'Connected successfully!' }))
     } catch (e) {
       setErrors(er => ({ ...er, [serviceId]: e.message }))
@@ -709,6 +748,64 @@ export default function Settings() {
               {/* Token input (shown when disconnected) */}
               {!isConnected && (
                 <>
+                  {svc.oauthFlow ? (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: '0.55rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        disabled={isBusy}
+                        onClick={() => {
+                          setBusy(b => ({ ...b, [svc.id]: true }))
+                          const API_ROOT = import.meta.env.VITE_API_URL || ''
+                          fetch(`${API_ROOT}/v1/integrations/google/connect`, {
+                            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                          })
+                            .then(r => r.json())
+                            .then(({ auth_url }) => {
+                              const popup = window.open(auth_url, 'google-oauth', 'width=550,height=680,scrollbars=yes')
+                              const check = setInterval(() => {
+                                if (popup && popup.closed) {
+                                  clearInterval(check)
+                                  setBusy(b => ({ ...b, [svc.id]: false }))
+                                  loadConnected()
+                                }
+                              }, 800)
+                            })
+                            .catch(e => {
+                              setBusy(b => ({ ...b, [svc.id]: false }))
+                              setErrors(er => ({ ...er, [svc.id]: e.message }))
+                            })
+                        }}
+                      >
+                        {isBusy
+                          ? <><div className="spinner" style={{ borderTopColor: '#fff' }} /> Connecting…</>
+                          : '⊗ Connect Google Account'}
+                      </button>
+                    </div>
+                  ) : svc.multiField ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      {svc.fields.map(f => (
+                        <div className="field" key={f.key} style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.72rem', color: 'var(--text3)', marginBottom: '0.2rem', display: 'block' }}>{f.label}</label>
+                          <input
+                            type={f.type}
+                            placeholder={f.placeholder}
+                            value={(multiInputs[svc.id] || {})[f.key] || ''}
+                            onChange={e => setMultiInputs(m => ({ ...m, [svc.id]: { ...(m[svc.id] || {}), [f.key]: e.target.value } }))}
+                            disabled={isBusy}
+                          />
+                        </div>
+                      ))}
+                      <button
+                        className="btn btn-primary"
+                        style={{ alignSelf: 'flex-start', padding: '0.55rem 1.2rem', marginTop: '0.2rem' }}
+                        disabled={isBusy}
+                        onClick={() => handleConnect(svc.id)}
+                      >
+                        {isBusy ? <><div className="spinner" style={{ borderTopColor: '#fff' }} /> Connecting…</> : 'Connect'}
+                      </button>
+                    </div>
+                  ) : (
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
                     <div className="field" style={{ flex: 1, marginBottom: 0 }}>
                       <input
@@ -731,6 +828,7 @@ export default function Settings() {
                         : 'Connect'}
                     </button>
                   </div>
+                  )}
 
                   {/* Guide toggle */}
                   {svc.guide && (
@@ -746,7 +844,7 @@ export default function Settings() {
                         }}
                       >
                         <span style={{ fontSize: '0.85rem' }}>{showGuide[svc.id] ? '▾' : '▸'}</span>
-                        Where do I get this token?
+                        {svc.oauthFlow ? 'What tools will I get?' : 'Where do I get this token?'}
                       </button>
                       {showGuide[svc.id] && (
                         <TokenGuide
