@@ -18,12 +18,16 @@ from backend.config import settings
 from backend.core.orchestrator import Orchestrator
 from backend.llm.factory import get_llm_provider
 from backend.mcp.registry import ToolRegistry
+from backend.mcp.servers.confluence_server import ConfluenceServer
 from backend.mcp.servers.github_server import GitHubServer
 from backend.mcp.servers.google_server import GoogleServer
+from backend.mcp.servers.hubspot_server import HubSpotServer
 from backend.mcp.servers.jira_server import JiraServer
 from backend.mcp.servers.linear_server import LinearServer
 from backend.mcp.servers.monitoring_server import MonitoringServer
+from backend.mcp.servers.notion_server import NotionServer
 from backend.mcp.servers.ops_server import OpsServer
+from backend.mcp.servers.pagerduty_server import PagerDutyServer
 from backend.mcp.servers.rag_server import RagServer
 from backend.mcp.servers.search_server import SearchServer
 from backend.mcp.servers.slack_server import SlackServer
@@ -51,6 +55,10 @@ def get_registry() -> ToolRegistry:
             JiraServer(),
             LinearServer(),
             GoogleServer(),
+            NotionServer(),
+            ConfluenceServer(),
+            PagerDutyServer(),
+            HubSpotServer(),
         ],
         enabled=enabled,
     )

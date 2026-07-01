@@ -149,6 +149,14 @@ async def _verify_token(service: str, token: str) -> dict | None:
             return await _verify_jira(token)
         if service == "linear":
             return await _verify_linear(token)
+        if service == "notion":
+            return await _verify_notion(token)
+        if service == "confluence":
+            return await _verify_confluence(token)
+        if service == "pagerduty":
+            return await _verify_pagerduty(token)
+        if service == "hubspot":
+            return await _verify_hubspot(token)
         return {"note": "token accepted (no live verify)"}
     except Exception:
         return None
@@ -228,3 +236,95 @@ async def _verify_slack(token: str) -> dict | None:
     if not d.get("ok"):
         return None
     return {"team": d.get("team"), "user": d.get("user"), "workspace_url": d.get("url")}
+
+
+async def _verify_notion(token: str) -> dict | None:
+    import json as _json
+    try:
+        cfg = _json.loads(token)
+        api_token = cfg.get("token", "")
+    except Exception:
+        api_token = token
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://api.notion.com/v1/users/me",
+            headers={
+                "Authorization": f"Bearer {api_token}",
+                "Notion-Version": "2022-06-28",
+            },
+        )
+    if resp.status_code == 200:
+        d = resp.json()
+        return {"name": d.get("name"), "type": d.get("type")}
+    return None
+
+
+async def _verify_confluence(token: str) -> dict | None:
+    import base64
+    import json as _json
+    try:
+        cfg = _json.loads(token)
+    except Exception:
+        return None
+    if not all(k in cfg for k in ("api_token", "email", "domain")):
+        return None
+    domain = cfg["domain"].rstrip("/")
+    if not domain.startswith("http"):
+        domain = f"https://{domain}"
+    creds = base64.b64encode(f"{cfg['email']}:{cfg['api_token']}".encode()).decode()
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            f"{domain}/wiki/rest/api/user/current",
+            headers={"Authorization": f"Basic {creds}", "Accept": "application/json"},
+        )
+    if resp.status_code == 200:
+        d = resp.json()
+        return {"display_name": d.get("displayName"), "email": cfg["email"], "domain": cfg["domain"]}
+    return None
+
+
+async def _verify_pagerduty(token: str) -> dict | None:
+    import json as _json
+    try:
+        cfg = _json.loads(token)
+        api_key = cfg.get("api_key", "")
+    except Exception:
+        api_key = token
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://api.pagerduty.com/users/me",
+            headers={
+                "Authorization": f"Token token={api_key}",
+                "Accept": "application/vnd.pagerduty+json;version=2",
+            },
+        )
+    if resp.status_code == 200:
+        d = resp.json().get("user", {})
+        return {"name": d.get("name"), "email": d.get("email"), "role": d.get("role")}
+    return None
+
+
+async def _verify_hubspot(token: str) -> dict | None:
+    import json as _json
+    try:
+        cfg = _json.loads(token)
+        hs_token = cfg.get("token", "")
+    except Exception:
+        hs_token = token
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://api.hubapi.com/oauth/v1/access-tokens/" + hs_token,
+            headers={"Authorization": f"Bearer {hs_token}"},
+        )
+    if resp.status_code == 200:
+        d = resp.json()
+        return {"hub_domain": d.get("hub_domain"), "user": d.get("user"), "hub_id": d.get("hub_id")}
+    # Private app tokens don't support /access-tokens — try a lightweight CRM call
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp2 = await client.get(
+            "https://api.hubapi.com/crm/v3/objects/contacts?limit=1",
+            headers={"Authorization": f"Bearer {hs_token}"},
+        )
+    if resp2.status_code == 200:
+        return {"note": "token valid (private app)"}
+    return None
