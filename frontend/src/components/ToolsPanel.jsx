@@ -8,6 +8,13 @@ const SERVER_COLORS = {
   slack:      '#059669',
   search:     '#d97706',
   monitoring: '#7c3aed',
+  jira:       '#0052cc',
+  linear:     '#5e6ad2',
+  google:     '#ea4335',
+  notion:     '#ffffff',
+  confluence: '#0052cc',
+  pagerduty:  '#06ac38',
+  hubspot:    '#ff7a59',
 }
 
 export default function ToolsPanel() {
