@@ -120,6 +120,93 @@ const SERVICES = [
       ],
     },
   },
+  {
+    id: 'notion',
+    label: 'Notion',
+    icon: '◻',
+    description: 'Connect Notion to search pages, read and create docs, and query databases.',
+    placeholder: 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    docsUrl: 'https://www.notion.so/my-integrations',
+    guide: {
+      title: 'How to get a Notion Integration Token',
+      steps: [
+        {
+          text: 'Go to notion.so/my-integrations → click "New integration"',
+          link: { label: 'Open Notion Integrations →', url: 'https://www.notion.so/my-integrations' },
+        },
+        { text: 'Enter a name (e.g. OpsPilot) → select your workspace → click Submit' },
+        { text: 'Copy the "Internal Integration Token" (starts with secret_)' },
+        { text: 'In Notion, open any page you want to give access → click ••• → Connections → select your integration' },
+        { text: 'Paste the token above → click Connect' },
+      ],
+      note: 'You must share each Notion page/database with the integration for it to be accessible.',
+    },
+  },
+  {
+    id: 'confluence',
+    label: 'Confluence',
+    icon: '⊟',
+    description: 'Connect Confluence to search docs, read pages, and create or update wiki content.',
+    multiField: true,
+    fields: [
+      { key: 'domain', label: 'Atlassian domain', placeholder: 'yourcompany.atlassian.net', type: 'text' },
+      { key: 'email', label: 'Atlassian account email', placeholder: 'you@company.com', type: 'email' },
+      { key: 'api_token', label: 'API token', placeholder: 'ATATT3xFfGF0...', type: 'password' },
+    ],
+    docsUrl: 'https://id.atlassian.com/manage-profile/security/api-tokens',
+    guide: {
+      title: 'How to connect Confluence',
+      steps: [
+        {
+          text: 'Go to id.atlassian.com → Security → API tokens → Create API token',
+          link: { label: 'Open Atlassian API Tokens →', url: 'https://id.atlassian.com/manage-profile/security/api-tokens' },
+        },
+        { text: 'Enter a label (e.g. OpsPilot) → click Create → copy the token immediately' },
+        { text: 'Enter your Atlassian domain (e.g. yourcompany.atlassian.net), email, and token above → click Connect' },
+      ],
+      note: 'The same API token works for both Jira and Confluence if your account has access to both.',
+    },
+  },
+  {
+    id: 'pagerduty',
+    label: 'PagerDuty',
+    icon: '⚠',
+    description: 'Connect PagerDuty to manage incidents, check on-call schedules, and trigger alerts.',
+    placeholder: 'u+xxxxxxxxxxxxxxxxxxxx',
+    docsUrl: 'https://support.pagerduty.com/docs/generating-api-keys',
+    guide: {
+      title: 'How to get a PagerDuty API Key',
+      steps: [
+        { text: 'Log into PagerDuty → click your avatar → User Settings → API Access Keys' },
+        { text: 'Click "Create New API Key" → enter a description (e.g. OpsPilot) → click Create Key' },
+        { text: 'Copy the key (starts with u+)' },
+        { text: 'Paste it above → click Connect' },
+      ],
+      note: 'Use a user-level API key for personal access, or an account-level key (admin only) for broader access.',
+    },
+  },
+  {
+    id: 'hubspot',
+    label: 'HubSpot',
+    icon: '⊛',
+    description: 'Connect HubSpot CRM to search contacts, manage deals, and track companies.',
+    placeholder: 'pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    docsUrl: 'https://app.hubspot.com/login',
+    guide: {
+      title: 'How to get a HubSpot Private App Token',
+      steps: [
+        { text: 'Log into HubSpot → click Settings (gear icon) → Integrations → Private Apps' },
+        { text: 'Click "Create a private app" → enter a name (e.g. OpsPilot)' },
+        {
+          text: 'Go to the Scopes tab and enable:',
+          chips: ['crm.objects.contacts.read', 'crm.objects.contacts.write', 'crm.objects.deals.read', 'crm.objects.deals.write', 'crm.objects.companies.read'],
+        },
+        { text: 'Click "Create app" → copy the access token (starts with pat-na1-)' },
+        { text: 'Paste it above → click Connect' },
+      ],
+      note: 'Private App tokens are scoped — only the permissions you select are granted.',
+    },
+  },
 ]
 
 function TokenGuide({ guide, onClose }) {

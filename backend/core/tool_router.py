@@ -162,6 +162,42 @@ def build_default_router() -> "ToolRouter":
         SlackUpdateMessageTool,
         SlackUploadFileTool,
     )
+    from backend.tools.notion import (
+        NotionAppendBlockTool,
+        NotionCreatePageTool,
+        NotionGetPageContentTool,
+        NotionGetPageTool,
+        NotionQueryDatabaseTool,
+        NotionSearchTool,
+        NotionUpdatePageTool,
+    )
+    from backend.tools.confluence import (
+        ConfluenceCreatePageTool,
+        ConfluenceGetPageTool,
+        ConfluenceGetSpacePagesTool,
+        ConfluenceListSpacesTool,
+        ConfluenceSearchTool,
+        ConfluenceUpdatePageTool,
+    )
+    from backend.tools.pagerduty import (
+        PagerDutyAcknowledgeIncidentTool,
+        PagerDutyCreateIncidentTool,
+        PagerDutyGetIncidentTool,
+        PagerDutyGetOncallTool,
+        PagerDutyListIncidentsTool,
+        PagerDutyListServicesTool,
+        PagerDutyResolveIncidentTool,
+    )
+    from backend.tools.hubspot import (
+        HubSpotCreateContactTool,
+        HubSpotCreateDealTool,
+        HubSpotGetContactTool,
+        HubSpotGetDealTool,
+        HubSpotListCompaniesTool,
+        HubSpotListDealsTool,
+        HubSpotSearchContactsTool,
+        HubSpotUpdateContactTool,
+    )
 
     return ToolRouter(
         [
@@ -290,6 +326,42 @@ def build_default_router() -> "ToolRouter":
             NotifyStalePRsTool(),
             BroadcastIncidentTool(),
             NotifyPRStakeholdersTool(),
+            # Notion read
+            NotionSearchTool(),
+            NotionGetPageTool(),
+            NotionGetPageContentTool(),
+            NotionQueryDatabaseTool(),
+            # Notion write (sensitive)
+            NotionCreatePageTool(),
+            NotionUpdatePageTool(),
+            NotionAppendBlockTool(),
+            # Confluence read
+            ConfluenceSearchTool(),
+            ConfluenceGetPageTool(),
+            ConfluenceListSpacesTool(),
+            ConfluenceGetSpacePagesTool(),
+            # Confluence write (sensitive)
+            ConfluenceCreatePageTool(),
+            ConfluenceUpdatePageTool(),
+            # PagerDuty read
+            PagerDutyListIncidentsTool(),
+            PagerDutyGetIncidentTool(),
+            PagerDutyListServicesTool(),
+            PagerDutyGetOncallTool(),
+            # PagerDuty write (sensitive)
+            PagerDutyCreateIncidentTool(),
+            PagerDutyAcknowledgeIncidentTool(),
+            PagerDutyResolveIncidentTool(),
+            # HubSpot read
+            HubSpotSearchContactsTool(),
+            HubSpotGetContactTool(),
+            HubSpotListDealsTool(),
+            HubSpotGetDealTool(),
+            HubSpotListCompaniesTool(),
+            # HubSpot write (sensitive)
+            HubSpotCreateContactTool(),
+            HubSpotUpdateContactTool(),
+            HubSpotCreateDealTool(),
         ]
     )
 

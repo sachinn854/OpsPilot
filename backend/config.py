@@ -101,7 +101,7 @@ class Settings(BaseSettings):
 
     # --- MCP tool registry ---
     # Comma-separated server names to enable, or "all" for everything.
-    TOOLS_ENABLED: str = "github,rag,ops,slack,search,monitoring,jira,linear,google"
+    TOOLS_ENABLED: str = "github,rag,ops,slack,search,monitoring,jira,linear,google,notion,confluence,pagerduty,hubspot"
 
     # --- Email (SMTP) ---
     SMTP_HOST: str = ""            # e.g. smtp.gmail.com
