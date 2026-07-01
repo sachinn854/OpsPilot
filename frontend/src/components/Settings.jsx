@@ -297,17 +297,10 @@ function LLMProviderPanel() {
   const [orLoading, setOrLoading]     = useState(false)
   const [showOrList, setShowOrList]   = useState(false)
 
-  // Ollama
-  const [ollamaModels, setOllama]     = useState(null)
-  const [supported, setSupported]     = useState([])
-
   useEffect(() => {
     apiFetch('/v1/llm/config').then(c => {
       setConfig(c); setProvider(c.provider); setModel(c.model)
     }).catch(() => {})
-    apiFetch('/v1/llm/ollama/supported').then(r => setSupported(r.models || [])).catch(() => {})
-    apiFetch('/v1/llm/ollama/models').then(setOllama).catch(() => {})
-    // Check if openrouter key is connected
     apiFetch('/v1/integrations').then(rows => {
       if (rows.find(r => r.service === 'openrouter')) setOrKeyStatus('ok')
     }).catch(() => {})
@@ -362,7 +355,6 @@ function LLMProviderPanel() {
     finally { setSaving(false) }
   }
 
-  const installedNames = new Set((ollamaModels?.models || []).map(m => m.name.split(':')[0]))
   const filteredOrModels = orModels.filter(m =>
     !orSearch || m.id.toLowerCase().includes(orSearch.toLowerCase()) ||
     m.name.toLowerCase().includes(orSearch.toLowerCase())
@@ -376,32 +368,11 @@ function LLMProviderPanel() {
       {config && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.73rem', color: 'var(--text3)' }}>Active:</span>
-          <span className="badge" style={{ fontSize: '0.68rem' }}>
-            {config.provider === 'ollama' ? '🖥 Ollama' : '☁ OpenRouter'}
-          </span>
+          <span className="badge" style={{ fontSize: '0.68rem' }}>☁ OpenRouter</span>
           <code style={{ fontSize: '0.78rem', color: 'var(--cyan)' }}>{config.model}</code>
           {config.is_custom && <span style={{ fontSize: '0.65rem', color: 'var(--text3)' }}>(your choice)</span>}
         </div>
       )}
-
-      {/* Provider toggle */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-        {['openrouter', 'ollama'].map(p => (
-          <button key={p} onClick={() => {
-            setProvider(p); setMsg('')
-            if (p === 'ollama') setModel(supported[1]?.name || 'llama3.1')
-            else setModel(config?.env_model || '')
-          }} style={{
-            flex: 1, padding: '0.5rem', borderRadius: 6, cursor: 'pointer',
-            fontFamily: 'Inter, sans-serif', fontSize: '0.8rem',
-            border: `2px solid ${provider === p ? 'var(--accent)' : 'var(--border)'}`,
-            background: provider === p ? 'var(--accent)' : 'var(--surface2)',
-            color: provider === p ? '#fff' : 'var(--text2)',
-          }}>
-            {p === 'openrouter' ? '☁ OpenRouter (cloud)' : '🖥 Ollama (local)'}
-          </button>
-        ))}
-      </div>
 
       {/* ── OpenRouter panel ── */}
       {provider === 'openrouter' && (
@@ -479,44 +450,6 @@ function LLMProviderPanel() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Ollama panel ── */}
-      {provider === 'ollama' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <select value={model} onChange={e => setModel(e.target.value)} style={inputStyle}>
-            <optgroup label="Installed on your machine">
-              {(ollamaModels?.models || []).map(m => (
-                <option key={m.name} value={m.name.split(':')[0]}>
-                  {m.name} — {m.size}{m.tools_support ? ' ✓ tools' : ''}
-                </option>
-              ))}
-              {!ollamaModels?.models?.length && <option disabled>No models installed</option>}
-            </optgroup>
-            <optgroup label="Supported models (pull to install)">
-              {supported.filter(m => !installedNames.has(m.name)).map(m => (
-                <option key={m.name} value={m.name}>{m.name} ({m.size}) — {m.notes}</option>
-              ))}
-            </optgroup>
-          </select>
-          {!ollamaModels?.ok && (
-            <div style={{ fontSize: '0.72rem', color: '#f87171' }}>
-              Ollama not running — start with: <code>ollama serve</code>
-            </div>
-          )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.25rem' }}>
-            {supported.map(m => (
-              <span key={m.name} title={m.notes} onClick={() => setModel(m.name)} style={{
-                background: installedNames.has(m.name) ? 'var(--accent)' : 'var(--surface2)',
-                color: installedNames.has(m.name) ? '#fff' : 'var(--text2)',
-                border: '1px solid var(--border)', borderRadius: 4,
-                padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer',
-              }}>
-                {m.name} <span style={{ opacity: 0.7 }}>{m.size}</span>
-              </span>
-            ))}
           </div>
         </div>
       )}

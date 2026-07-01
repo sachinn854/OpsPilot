@@ -82,6 +82,53 @@ export default function NewRun({ onDone, onBack }) {
         <div className="page-subtitle">Describe a goal — the copilot plans and executes it</div>
       </div>
 
+      {/* When to use Runs guide */}
+      <div style={{
+        maxWidth: 600,
+        marginBottom: '1.5rem',
+        background: 'var(--surface2)',
+        border: '1px solid var(--border2)',
+        borderRadius: 10,
+        padding: '1rem 1.2rem',
+      }}>
+        <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ color: 'var(--accent)' }}>⊙</span> When to use Runs vs Chat
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div style={{ background: 'var(--surface3)', borderRadius: 8, padding: '0.75rem 0.9rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--green)', marginBottom: '0.4rem' }}>▶ Use Run when…</div>
+            <ul style={{ margin: 0, paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {[
+                'Goal needs multiple steps or tools',
+                'You want planning + verification',
+                'Action needs human approval (HITL)',
+                'Cross-service workflows (GitHub → Slack → Jira)',
+                'Complex research + action combined',
+              ].map((t, i) => (
+                <li key={i} style={{ fontSize: '0.75rem', color: 'var(--text2)', lineHeight: 1.5 }}>{t}</li>
+              ))}
+            </ul>
+          </div>
+          <div style={{ background: 'var(--surface3)', borderRadius: 8, padding: '0.75rem 0.9rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cyan)', marginBottom: '0.4rem' }}>💬 Use Chat when…</div>
+            <ul style={{ margin: 0, paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {[
+                'Quick single question or lookup',
+                'List issues, PRs, emails, events',
+                'Simple one-tool actions',
+                'Conversational back-and-forth',
+                'Fast response needed',
+              ].map((t, i) => (
+                <li key={i} style={{ fontSize: '0.75rem', color: 'var(--text2)', lineHeight: 1.5 }}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid var(--border)', fontSize: '0.73rem', color: 'var(--text3)', lineHeight: 1.6 }}>
+          💡 Examples: <span style={{ color: 'var(--text2)' }}>"Find root cause of prod outage, create Jira ticket, notify Slack"</span> → Run &nbsp;·&nbsp; <span style={{ color: 'var(--text2)' }}>"Show my open PRs"</span> → Chat
+        </div>
+      </div>
+
       <div style={{ maxWidth: 600 }}>
         <form onSubmit={handleSubmit}>
           <div className="field">
