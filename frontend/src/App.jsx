@@ -9,6 +9,7 @@ import Chat from './components/Chat'
 import Settings from './components/Settings'
 import SlackFeatures from './components/SlackFeatures'
 import Login from './components/Login'
+import Tour from './components/Tour'
 import { authMe, clearAuth, deleteConversation, fetchConversations, getToken, getUser } from './api'
 import './App.css'
 
@@ -37,6 +38,7 @@ export default function App() {
   const [page, setPage]                   = useState('chat')
   const [selectedRunId, setSelectedRunId] = useState(null)
   const [online, setOnline]               = useState(null)
+  const [showTour, setShowTour]           = useState(false)
 
   // Auth state
   const [user, setUser] = useState(null)
@@ -56,7 +58,10 @@ export default function App() {
       .catch(() => { clearAuth(); setAuthChecked(true) })
   }, [])
 
-  function handleLogin(u) { setUser(u) }
+  function handleLogin(u) {
+    setUser(u)
+    if (!localStorage.getItem('opspilot_tour_done')) setShowTour(true)
+  }
   function handleLogout() { clearAuth(); setUser(null); setConvList([]); setActiveConvId(null) }
 
   // Health check
@@ -133,6 +138,7 @@ export default function App() {
         <div className="sidebar-chat-section">
           {/* Chat nav item */}
           <button
+            id="tour-chat"
             className={`nav-item${activePage === 'chat' ? ' active' : ''}`}
             onClick={() => nav('chat')}
           >
@@ -193,6 +199,7 @@ export default function App() {
                 {items.map(n => (
                   <button
                     key={n.id}
+                    id={`tour-${n.id}`}
                     className={`nav-item${activePage === n.id ? ' active' : ''}`}
                     onClick={() => nav(n.id)}
                   >
@@ -226,12 +233,24 @@ export default function App() {
         </div>
 
         <div style={{ padding: '0 0.75rem 0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.65rem', color: 'var(--text3)' }}>v0.7</span>
+          <button
+            onClick={() => setShowTour(true)}
+            title="Take a tour"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text3)', fontSize: '0.65rem', padding: 0,
+              display: 'flex', alignItems: 'center', gap: '0.3rem',
+            }}
+          >
+            ⊙ Tour
+          </button>
           <span className={`online-badge${online === false ? ' offline' : ''}`} style={{ fontSize: '0.65rem' }}>
             {online === null ? 'Connecting…' : online ? 'Online' : 'Offline'}
           </span>
         </div>
       </aside>
+
+      {showTour && <Tour onComplete={() => setShowTour(false)} />}
 
       <main className="content">
         {page === 'chat' && (
