@@ -13,8 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.deps import get_registry, limiter
+from backend.auth.deps import get_current_user
 from backend.config import settings
-from backend.db.models import Document
+from backend.db.models import Document, User
 from backend.db.session import get_session
 from backend.llm.openrouter_provider import OpenRouterProvider
 from backend.rag.extract import extract_text
@@ -24,8 +25,6 @@ from backend.security.guardrails import check_injection
 from backend.security.rbac import Role, require_role
 
 router = APIRouter(prefix="/v1/documents", tags=["documents"])
-
-_ORG = "default"
 _MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
 _ALLOWED_SUFFIXES = {".txt", ".md", ".pdf", ".py", ".js", ".ts", ".json"}
 _llm = OpenRouterProvider()
@@ -56,6 +55,7 @@ async def upload_document(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
     _role: Role = require_role(Role.operator),
+    user: User = Depends(get_current_user),
 ) -> UploadResponse:
     # Sanitise filename — strip any path components.
     safe_name = pathlib.Path(file.filename or "upload.bin").name
@@ -85,7 +85,7 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="No extractable text in the file.")
 
     try:
-        doc = await ingest_text(session, text=text, filename=safe_name, org_id=_ORG)
+        doc = await ingest_text(session, text=text, filename=safe_name, org_id=str(user.id))
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Ingestion failed: {exc}")
 
@@ -98,6 +98,7 @@ async def ask(
     request: Request,
     req: AskRequest,
     _role: Role = require_role(Role.viewer),
+    user: User = Depends(get_current_user),
 ) -> RagAnswer:
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="question cannot be empty")
@@ -107,7 +108,7 @@ async def ask(
         raise HTTPException(status_code=400, detail=guard.reason)
 
     try:
-        return await answer_question(req.question, llm=_llm, org_id=_ORG, top_k=req.top_k)
+        return await answer_question(req.question, llm=_llm, org_id=str(user.id), top_k=req.top_k)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
@@ -117,9 +118,10 @@ async def ask(
 async def list_documents(
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> list[DocumentInfo]:
     result = await session.execute(
-        select(Document).where(Document.org_id == _ORG).order_by(Document.created_at)
+        select(Document).where(Document.org_id == str(user.id)).order_by(Document.created_at)
     )
     return [
         DocumentInfo(id=d.id, filename=d.filename, source=d.source, num_chunks=d.num_chunks)

@@ -26,8 +26,6 @@ from backend.integrations.store import (
 
 router = APIRouter(prefix="/v1/integrations", tags=["integrations"])
 
-_ORG = "default"
-
 
 class SaveTokenRequest(BaseModel):
     token: str
@@ -53,10 +51,11 @@ def _validate_service(service: str) -> None:
 async def list_integrations(
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> list[ConnectedService]:
-    """List all services the current org has connected."""
-    rows = await list_connected(session, org_id=_ORG)
-    # Also surface services that have .env tokens but aren't in DB yet
+    """List all services the current user has connected."""
+    org_id = str(user.id)
+    rows = await list_connected(session, org_id=org_id)
     connected_services = {r["service"] for r in rows}
     result = [ConnectedService(**r) for r in rows]
 
@@ -76,19 +75,18 @@ async def save_integration(
     service: str,
     req: SaveTokenRequest,
     session: AsyncSession = Depends(get_session),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> ConnectedService:
-    """Save or replace a service token for the current org."""
+    """Save or replace a service token for the current user."""
     _validate_service(service)
     if not req.token.strip():
         raise HTTPException(status_code=400, detail="Token cannot be empty.")
 
-    # Quick verify before saving
     meta = await _verify_token(service, req.token.strip())
     if meta is None:
         raise HTTPException(status_code=400, detail=f"Token verification failed for '{service}'. Check your token.")
 
-    await save_token(session, org_id=_ORG, service=service, token=req.token.strip(), meta=meta)
+    await save_token(session, org_id=str(user.id), service=service, token=req.token.strip(), meta=meta)
     return ConnectedService(service=service, connected=True, meta=meta)
 
 
@@ -98,11 +96,11 @@ async def disconnect_integration(
     request: Request,
     service: str,
     session: AsyncSession = Depends(get_session),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> dict:
     """Disconnect a service by deleting its stored token."""
     _validate_service(service)
-    deleted = await delete_token(session, org_id=_ORG, service=service)
+    deleted = await delete_token(session, org_id=str(user.id), service=service)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"No token found for '{service}'.")
     return {"service": service, "connected": False}
@@ -114,12 +112,12 @@ async def verify_integration(
     request: Request,
     service: str,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> dict:
     """Verify that the stored token for a service is still valid."""
     _validate_service(service)
 
-    # Try DB first, then .env fallback for github
-    token = await get_token(session, org_id=_ORG, service=service)
+    token = await get_token(session, org_id=str(user.id), service=service)
     if not token and service == "github":
         token = settings.GITHUB_TOKEN or None
 

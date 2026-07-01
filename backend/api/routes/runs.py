@@ -15,16 +15,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.deps import get_orchestrator, limiter
+from backend.auth.deps import get_current_user
 from backend.config import settings
 from backend.core.orchestrator import RunResult
-from backend.db.models import Run
+from backend.db.models import Run, User
 from backend.db.session import get_session
 from backend.security.guardrails import check_injection
 from backend.security.rbac import Role, require_role
 
 router = APIRouter(prefix="/v1/runs", tags=["runs"])
 
-_ORG = "default"
 _orchestrator = get_orchestrator()
 
 
@@ -51,6 +51,7 @@ async def create_run(
     req: RunRequest,
     session: AsyncSession = Depends(get_session),
     _role: Role = require_role(Role.operator),
+    user: User = Depends(get_current_user),
 ) -> RunResult:
     if not req.goal.strip():
         raise HTTPException(status_code=400, detail="goal cannot be empty")
@@ -61,11 +62,11 @@ async def create_run(
         raise HTTPException(status_code=400, detail=guard.reason)
     try:
         return await _orchestrator.run(
-            session, goal=req.goal, org_id=_ORG, top_k=req.top_k
+            session, goal=req.goal, org_id=str(user.id), top_k=req.top_k
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    except ValueError as exc:  # structured-output failure
+    except ValueError as exc:
         raise HTTPException(status_code=502, detail=f"Run failed: {exc}")
 
 
@@ -76,6 +77,7 @@ async def create_run_stream(
     req: RunRequest,
     session: AsyncSession = Depends(get_session),
     _role: Role = require_role(Role.operator),
+    user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """Same as POST /v1/runs but streams SSE progress events as each agent node finishes."""
     if not req.goal.strip():
@@ -84,10 +86,12 @@ async def create_run_stream(
     if not guard.safe:
         raise HTTPException(status_code=400, detail=guard.reason)
 
+    org_id = str(user.id)
+
     async def event_stream():
         try:
             async for chunk in _orchestrator.stream_run(
-                session, goal=req.goal, org_id=_ORG, top_k=req.top_k
+                session, goal=req.goal, org_id=org_id, top_k=req.top_k
             ):
                 yield chunk
         except RuntimeError as exc:
@@ -102,10 +106,11 @@ async def create_run_stream(
 async def list_runs(
     limit: int = 50,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> list[RunInfo]:
     limit = max(1, min(limit, 200))
     result = await session.execute(
-        select(Run).where(Run.org_id == _ORG).order_by(Run.created_at.desc()).limit(limit)
+        select(Run).where(Run.org_id == str(user.id)).order_by(Run.created_at.desc()).limit(limit)
     )
     return [
         RunInfo(
@@ -121,10 +126,12 @@ async def list_runs(
 
 @router.get("/{run_id}")
 async def get_run(
-    run_id: str, session: AsyncSession = Depends(get_session)
+    run_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> dict:
     run = await session.get(Run, run_id)
-    if run is None or run.org_id != _ORG:
+    if run is None or run.org_id != str(user.id):
         raise HTTPException(status_code=404, detail="run not found")
     return {
         "id": run.id,
