@@ -117,8 +117,10 @@ async def detect_sections_llm(messages: list[dict], available: set[str]) -> list
             resp = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                    "Content-Type":  "application/json",
+                    "Authorization":  f"Bearer {settings.OPENROUTER_API_KEY}",
+                    "Content-Type":   "application/json",
+                    "HTTP-Referer":   "https://github.com/ai-ops-copilot",
+                    "X-Title":        "AI Operations Copilot",
                 },
                 json={
                     "model":      settings.CLASSIFIER_MODEL,
