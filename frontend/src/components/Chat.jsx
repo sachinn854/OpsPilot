@@ -247,7 +247,7 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
             {m.role === 'assistant' && <Avatar />}
             <div style={{
               maxWidth: '74%',
-              background: m.role === 'user' ? 'var(--accent)' : 'var(--surface2)',
+              background: m.role === 'user' ? '#2563eb' : 'var(--surface2)',
               color: m.role === 'user' ? '#fff' : 'var(--text)',
               border: m.role === 'user' ? 'none' : '1px solid var(--border)',
               borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '4px 14px 14px 14px',

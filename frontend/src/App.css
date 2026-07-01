@@ -3,21 +3,21 @@
 
 /* ── Design tokens ── */
 :root {
-  /* Backgrounds — indigo-tinted dark */
-  --bg:       #0b0b12;
-  --bg2:      #0f0f18;
-  --surface:  #15151e;
-  --surface2: #1c1c28;
-  --surface3: #232330;
+  /* Backgrounds — pure black */
+  --bg:       #000000;
+  --bg2:      #080808;
+  --surface:  #0e0e0e;
+  --surface2: #141414;
+  --surface3: #1c1c1c;
 
   /* Borders */
-  --border:   #2a2a3a;
-  --border2:  #38384e;
+  --border:   #222222;
+  --border2:  #2e2e2e;
 
   /* Typography */
-  --text:     #ededf2;
-  --text2:    #7a7a9a;
-  --text3:    #44445a;
+  --text:     #ffffff;
+  --text2:    #9ca3af;
+  --text3:    #4b5563;
 
   /* Brand — indigo */
   --accent:      #6366f1;
@@ -66,7 +66,7 @@ body {
 ──────────────────────────────────────── */
 .sidebar {
   width: 240px;
-  background: linear-gradient(180deg, #1a1a28 0%, #111120 100%);
+  background: #000000;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
