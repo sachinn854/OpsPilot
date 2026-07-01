@@ -4,10 +4,9 @@ Runs endpoints: drive a goal through the multi-agent system.
   POST /v1/runs        → give a goal → Planner→Research→Execution→Critic→Reporting
   GET  /v1/runs        → list past runs
   GET  /v1/runs/{id}   → fetch one run (plan, report, confidence, tool calls)
-
-This is the end-to-end flow: plan, gather, act, self-verify, report.
-Org scoping stays "default" until auth lands.
 """
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -42,6 +41,7 @@ class RunInfo(BaseModel):
     status: str
     confidence: float | None
     attempts: int
+    created_at: datetime | None
 
 
 @router.post("", response_model=RunResult)
@@ -119,6 +119,7 @@ async def list_runs(
             status=r.status,
             confidence=r.confidence,
             attempts=r.attempts,
+            created_at=r.created_at,
         )
         for r in result.scalars().all()
     ]

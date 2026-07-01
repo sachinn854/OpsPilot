@@ -68,7 +68,7 @@ export default function RunList({ onSelect, onNew }) {
           <div className="run-meta">
             <span>{r.attempts} attempt{r.attempts !== 1 ? 's' : ''}</span>
             <span>·</span>
-            <span className="mono" style={{ fontSize: '0.7rem' }}>{new Date(r.created_at).toLocaleString()}</span>
+            {r.created_at && <span className="mono" style={{ fontSize: '0.7rem' }}>{new Date(r.created_at).toLocaleString()}</span>}
           </div>
         </div>
       ))}

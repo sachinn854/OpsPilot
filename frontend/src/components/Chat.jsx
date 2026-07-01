@@ -88,6 +88,11 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streaming, toolMsg])
 
+  // Abort any in-flight stream on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort() }
+  }, [])
+
   // Focus input on mount and when active conv changes
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 50)

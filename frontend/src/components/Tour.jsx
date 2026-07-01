@@ -70,7 +70,18 @@ export default function Tour({ onComplete }) {
     const el = document.getElementById(current.target)
     if (!el) { setRect(null); return }
     el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    setTimeout(() => setRect(el.getBoundingClientRect()), 80)
+
+    let tid
+    const update = () => {
+      clearTimeout(tid)
+      tid = setTimeout(() => setRect(el.getBoundingClientRect()), 80)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => {
+      clearTimeout(tid)
+      window.removeEventListener('resize', update)
+    }
   }, [step, current.target])
 
   function next() {

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { BASE, getToken } from '../api'
 
 const NODE_META = {
   run_created:  { icon: '⊕', label: 'Run created',       cls: 'tl-created'   },
@@ -25,17 +26,26 @@ export default function NewRun({ onDone, onBack }) {
   const [running, setRunning] = useState(false)
   const [events, setEvents]   = useState([])
   const [error, setError]     = useState('')
+  const abortRef              = useRef(null)
+
+  useEffect(() => {
+    return () => { abortRef.current?.abort() }
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!goal.trim() || running) return
     setRunning(true); setEvents([]); setError('')
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
-      const res = await fetch('/v1/runs/stream', {
+      const res = await fetch(`${BASE}/runs/stream`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-Role': 'operator' },
+        headers: { 'Content-Type': 'application/json', 'X-User-Role': 'operator', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({ goal: goal.trim() }),
+        signal: controller.signal,
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({ detail: res.statusText }))
@@ -67,8 +77,9 @@ export default function NewRun({ onDone, onBack }) {
         }
       }
     } catch (e) {
-      setError(e.message)
+      if (e.name !== 'AbortError') setError(e.message)
     } finally {
+      abortRef.current = null
       setRunning(false)
     }
   }

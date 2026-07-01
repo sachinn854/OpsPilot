@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { apiFetch } from '../api'
+import { BASE, apiFetch } from '../api'
 
 // ── Keyword Alerts ─────────────────────────────────────────────────────────
 
@@ -14,14 +14,14 @@ function KeywordAlerts() {
   useEffect(() => { load() }, [])
 
   async function load() {
-    try { setAlerts(await apiFetch('/v1/slack/alerts')) } catch {}
+    try { setAlerts(await apiFetch(`${BASE}/slack/alerts`)) } catch {}
   }
 
   async function add() {
     if (!keyword.trim()) return
     setBusy(true); setError('')
     try {
-      const a = await apiFetch('/v1/slack/alerts', {
+      const a = await apiFetch(`${BASE}/slack/alerts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keyword: keyword.trim(), channels, notify_via: via }),
@@ -34,14 +34,14 @@ function KeywordAlerts() {
 
   async function toggle(id) {
     try {
-      const updated = await apiFetch(`/v1/slack/alerts/${id}`, { method: 'PATCH' })
+      const updated = await apiFetch(`${BASE}/slack/alerts/${id}`, { method: 'PATCH' })
       setAlerts(prev => prev.map(a => a.id === id ? updated : a))
     } catch {}
   }
 
   async function remove(id) {
     try {
-      await apiFetch(`/v1/slack/alerts/${id}`, { method: 'DELETE' })
+      await apiFetch(`${BASE}/slack/alerts/${id}`, { method: 'DELETE' })
       setAlerts(prev => prev.filter(a => a.id !== id))
     } catch {}
   }
@@ -126,14 +126,14 @@ function EventTriggers() {
   useEffect(() => { load() }, [])
 
   async function load() {
-    try { setTriggers(await apiFetch('/v1/slack/triggers')) } catch {}
+    try { setTriggers(await apiFetch(`${BASE}/slack/triggers`)) } catch {}
   }
 
   async function save() {
     setBusy(true); setError('')
     try {
       const config = JSON.parse(configStr || '{}')
-      const t = await apiFetch('/v1/slack/triggers', {
+      const t = await apiFetch(`${BASE}/slack/triggers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, action_config: config }),
@@ -148,14 +148,14 @@ function EventTriggers() {
 
   async function toggle(id) {
     try {
-      const updated = await apiFetch(`/v1/slack/triggers/${id}`, { method: 'PATCH' })
+      const updated = await apiFetch(`${BASE}/slack/triggers/${id}`, { method: 'PATCH' })
       setTriggers(prev => prev.map(t => t.id === id ? updated : t))
     } catch {}
   }
 
   async function remove(id) {
     try {
-      await apiFetch(`/v1/slack/triggers/${id}`, { method: 'DELETE' })
+      await apiFetch(`${BASE}/slack/triggers/${id}`, { method: 'DELETE' })
       setTriggers(prev => prev.filter(t => t.id !== id))
     } catch {}
   }

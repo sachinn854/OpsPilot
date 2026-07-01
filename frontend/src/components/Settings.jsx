@@ -547,7 +547,7 @@ export default function Settings() {
     setErrors(e => ({ ...e, [serviceId]: '' }))
     setSuccess(s => ({ ...s, [serviceId]: '' }))
     try {
-      const result = await apiFetch(`/v1/integrations/${serviceId}`, {
+      const result = await apiFetch(`${BASE}/integrations/${serviceId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Role': 'operator' },
         body: JSON.stringify({ token }),
@@ -567,7 +567,7 @@ export default function Settings() {
     if (!window.confirm(`Disconnect ${serviceId}? The stored token will be deleted.`)) return
     setBusy(b => ({ ...b, [serviceId]: true }))
     try {
-      await apiFetch(`/v1/integrations/${serviceId}`, { method: 'DELETE' })
+      await apiFetch(`${BASE}/integrations/${serviceId}`, { method: 'DELETE' })
       setConnected(c => { const n = { ...c }; delete n[serviceId]; return n })
       setSuccess(s => ({ ...s, [serviceId]: 'Disconnected.' }))
     } catch (e) {
@@ -582,7 +582,7 @@ export default function Settings() {
     setSuccess(s => ({ ...s, [serviceId]: '' }))
     setErrors(e => ({ ...e, [serviceId]: '' }))
     try {
-      const result = await apiFetch(`/v1/integrations/${serviceId}/verify`)
+      const result = await apiFetch(`${BASE}/integrations/${serviceId}/verify`)
       if (result.valid) {
         setSuccess(s => ({ ...s, [serviceId]: `Token valid ✓ ${result.meta?.username || result.meta?.user || ''}` }))
       } else {
