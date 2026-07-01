@@ -1,5 +1,5 @@
 const API_ROOT = import.meta.env.VITE_API_URL || ''
-const BASE = `${API_ROOT}/v1`
+export const BASE = `${API_ROOT}/v1`
 const TIMEOUT_MS = 30_000
 
 export function getToken() { return localStorage.getItem('token') }

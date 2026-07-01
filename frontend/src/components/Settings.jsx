@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { apiFetch } from '../api'
+import { BASE, apiFetch } from '../api'
 
 const SERVICES = [
   {
@@ -298,10 +298,10 @@ function LLMProviderPanel() {
   const [showOrList, setShowOrList]   = useState(false)
 
   useEffect(() => {
-    apiFetch('/v1/llm/config').then(c => {
+    apiFetch(`${BASE}/llm/config`).then(c => {
       setConfig(c); setProvider(c.provider); setModel(c.model)
     }).catch(() => {})
-    apiFetch('/v1/integrations').then(rows => {
+    apiFetch(`${BASE}/integrations`).then(rows => {
       if (rows.find(r => r.service === 'openrouter')) setOrKeyStatus('ok')
     }).catch(() => {})
   }, [])
@@ -310,7 +310,7 @@ function LLMProviderPanel() {
     if (!orKey.trim()) return
     setOrKeyStatus('saving')
     try {
-      await apiFetch('/v1/integrations/openrouter', {
+      await apiFetch(`${BASE}/integrations/openrouter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: orKey.trim() }),
@@ -322,7 +322,7 @@ function LLMProviderPanel() {
   async function loadOrModels() {
     setOrLoading(true); setShowOrList(true)
     try {
-      const r = await apiFetch('/v1/llm/openrouter/models')
+      const r = await apiFetch(`${BASE}/llm/openrouter/models`)
       if (r.ok) setOrModels(r.models || [])
       else { setMsg(r.error); setShowOrList(false) }
     } catch (e) { setMsg(e.message); setShowOrList(false) }
@@ -333,7 +333,7 @@ function LLMProviderPanel() {
     if (!model.trim()) return
     setSaving(true); setMsg('')
     try {
-      await apiFetch('/v1/llm/config', {
+      await apiFetch(`${BASE}/llm/config`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, model: model.trim() }),
@@ -347,8 +347,8 @@ function LLMProviderPanel() {
   async function reset() {
     setSaving(true); setMsg('')
     try {
-      await apiFetch('/v1/llm/config', { method: 'DELETE' })
-      const c = await apiFetch('/v1/llm/config')
+      await apiFetch(`${BASE}/llm/config`, { method: 'DELETE' })
+      const c = await apiFetch(`${BASE}/llm/config`)
       setConfig(c); setProvider(c.provider); setModel(c.model)
       setMsg('Reset to system default.')
     } catch (e) { setMsg('Error: ' + e.message) }
@@ -491,7 +491,7 @@ export default function Settings() {
 
   async function loadConnected() {
     try {
-      const rows = await apiFetch('/v1/integrations')
+      const rows = await apiFetch(`${BASE}/integrations`)
       const map = {}
       for (const r of rows) map[r.service] = r
       setConnected(map)
@@ -500,7 +500,7 @@ export default function Settings() {
 
   async function loadDigestPrefs() {
     try {
-      const me = await apiFetch('/v1/auth/me')
+      const me = await apiFetch(`${BASE}/auth/me`)
       setDigestEnabled(me.digest_email_enabled ?? true)
       setDigestEmail(me.digest_email_override || '')
     } catch { /* silent */ }
@@ -510,7 +510,7 @@ export default function Settings() {
     setDigestSaving(true)
     setDigestMsg('')
     try {
-      await apiFetch('/v1/auth/digest-prefs', {
+      await apiFetch(`${BASE}/auth/digest-prefs`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
