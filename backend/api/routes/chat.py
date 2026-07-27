@@ -19,13 +19,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.agents.copilot import CopilotAgent
-from backend.api.deps import get_registry, limiter
+from backend.api.deps import limiter
 from backend.auth.deps import get_current_user
 from backend.config import settings
 from backend.db.models import Conversation, Message, User
 from backend.db.session import AsyncSessionLocal, get_session
 from backend.llm.factory import get_llm_for_user
-from backend.llm.openrouter_provider import OpenRouterProvider
 from backend.security.guardrails import check_injection
 
 router = APIRouter(prefix="/v1", tags=["chat"])
@@ -71,28 +70,79 @@ async def _auto_title(conv_id: str, user_msg: str, reply: str) -> None:
         pass
 
 
+_WEEKLY_FREE_LIMIT = 6
+_WEEK_TTL = 7 * 24 * 3600  # 604800 seconds
+
+
 def _get_router():
     from backend.core.tool_router import build_default_router
     return build_default_router()
 
 
-async def _get_copilot(user, session) -> CopilotAgent:
-    """Create a Copilot agent with the user's preferred LLM provider + their API key."""
-    from fastapi import HTTPException
+async def _enforce_weekly_limit(user_id: str) -> None:
+    """Check + increment the weekly free-tier counter. Raises 429 when exhausted."""
+    import redis.asyncio as aioredis
+    r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    key = f"chat_weekly:{user_id}"
+    try:
+        count = int(await r.get(key) or 0)
+        if count >= _WEEKLY_FREE_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"You've used all {_WEEKLY_FREE_LIMIT} free messages for this week. "
+                    "Go to Settings → LLM Provider and add your own OpenRouter API key "
+                    "to get unlimited messages."
+                ),
+            )
+        pipe = r.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, _WEEK_TTL)
+        await pipe.execute()
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Redis unavailable → allow the request
+    finally:
+        try:
+            await r.aclose()
+        except Exception:
+            pass
+
+
+async def _resolve_api_key(user, session) -> str | None:
+    """
+    Return the OpenRouter API key to use for this user:
+      1. User's own saved key (no weekly limit)
+      2. Server env key (enforces _WEEKLY_FREE_LIMIT per user per week)
+      3. None (Ollama / no key configured)
+    Raises HTTPException if no key is available at all.
+    """
     from backend.integrations.store import get_token
 
     provider = (getattr(user, "llm_provider", "") or settings.LLM_PROVIDER).lower()
+    if provider == "ollama":
+        return None
 
-    if provider != "ollama":
-        api_key = await get_token(session, org_id=str(user.id), service="openrouter")
-        if not api_key:
-            raise HTTPException(
-                status_code=400,
-                detail="OpenRouter API key not set. Go to Settings → LLM Provider and add your key.",
-            )
-    else:
-        api_key = None
+    own_key = await get_token(session, org_id=str(user.id), service="openrouter")
+    if own_key:
+        return own_key
 
+    if settings.OPENROUTER_API_KEY:
+        await _enforce_weekly_limit(str(user.id))
+        return settings.OPENROUTER_API_KEY
+
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "No OpenRouter API key configured. "
+            "Go to Settings → LLM Provider and add your key."
+        ),
+    )
+
+
+async def _get_copilot(user, session) -> CopilotAgent:
+    api_key = await _resolve_api_key(user, session)
     return CopilotAgent(llm=get_llm_for_user(user, api_key=api_key), router=_get_router())
 
 
@@ -194,17 +244,7 @@ async def chat_stream(
     history = [{"role": m.role, "content": m.content} for m in reversed(result.scalars().all())]
     history.append({"role": "user", "content": req.message})
 
-    from backend.integrations.store import get_token as _get_token
-    _provider = (getattr(current_user, "llm_provider", "") or settings.LLM_PROVIDER).lower()
-    if _provider != "ollama":
-        user_api_key = await _get_token(session, org_id=str(current_user.id), service="openrouter")
-        if not user_api_key:
-            raise HTTPException(
-                status_code=400,
-                detail="OpenRouter API key not set. Go to Settings → LLM Provider and add your key.",
-            )
-    else:
-        user_api_key = None
+    user_api_key = await _resolve_api_key(current_user, session)
 
     session.add(Message(conversation_id=conversation.id, role="user", content=req.message))
     await session.commit()
