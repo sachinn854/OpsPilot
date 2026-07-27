@@ -101,8 +101,13 @@ async def _enforce_weekly_limit(user_id: str) -> None:
         await pipe.execute()
     except HTTPException:
         raise
-    except Exception:
-        pass  # Redis unavailable → allow the request
+    except Exception as exc:
+        import logging
+        logging.getLogger("copilot.chat").warning("Redis unavailable for rate limit check: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Service temporarily unavailable. Please try again in a moment.",
+        )
     finally:
         try:
             await r.aclose()
