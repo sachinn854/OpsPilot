@@ -84,7 +84,7 @@ async def _get_copilot(user, session) -> CopilotAgent:
     provider = (getattr(user, "llm_provider", "") or settings.LLM_PROVIDER).lower()
 
     if provider != "ollama":
-        api_key = await get_token(session, org_id="default", service="openrouter")
+        api_key = await get_token(session, org_id=str(user.id), service="openrouter")
         if not api_key:
             raise HTTPException(
                 status_code=400,
@@ -197,7 +197,7 @@ async def chat_stream(
     from backend.integrations.store import get_token as _get_token
     _provider = (getattr(current_user, "llm_provider", "") or settings.LLM_PROVIDER).lower()
     if _provider != "ollama":
-        user_api_key = await _get_token(session, org_id="default", service="openrouter")
+        user_api_key = await _get_token(session, org_id=str(current_user.id), service="openrouter")
         if not user_api_key:
             raise HTTPException(
                 status_code=400,

@@ -86,7 +86,7 @@ async def list_openrouter_models(
     """Fetch available OpenRouter models using the user's own API key."""
     # Try user's saved key first, fall back to env
     from backend.integrations.store import get_token
-    api_key = await get_token(session, org_id="default", service="openrouter")
+    api_key = await get_token(session, org_id=str(current_user.id), service="openrouter")
     api_key = api_key or settings.OPENROUTER_API_KEY
 
     if not api_key:
