@@ -11,9 +11,9 @@ ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build
 
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY frontend/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+RUN npm install -g serve
 
-CMD ["/entrypoint.sh"]
+CMD ["sh", "-c", "serve -s dist -l ${PORT:-3000}"]
