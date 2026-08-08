@@ -1,7 +1,6 @@
 [build]
 builder = "dockerfile"
 
-# Backend service
 [[services]]
 name = "backend"
 dockerfilePath = "backend/Dockerfile"
@@ -14,14 +13,10 @@ healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
-# Frontend service — Nixpacks auto-detects Node, runs build then start
 [[services]]
 name = "frontend"
-
-[services.build]
-builder = "nixpacks"
-buildCommand = "cd frontend && npm install && npm run build"
+dockerfilePath = "frontend/Dockerfile"
+buildContext = "."
 
 [services.deploy]
-startCommand = "cd frontend && npm start"
 healthcheckPath = "/"
