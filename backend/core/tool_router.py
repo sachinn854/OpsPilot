@@ -15,15 +15,19 @@ from backend.tools.base import Tool, ToolResult
 class ToolRouter:
     def __init__(self, tools: list[Tool] | None = None):
         self._tools: dict[str, Tool] = {}
+        self._schema_cache: list[dict] | None = None
         for tool in tools or []:
             self.register(tool)
 
     def register(self, tool: Tool) -> None:
         self._tools[tool.name] = tool
+        self._schema_cache = None  # invalidate on change
 
     def schemas(self) -> list[dict]:
         """All tool schemas in OpenAI/Groq function-calling format."""
-        return [tool.to_openai_schema() for tool in self._tools.values()]
+        if self._schema_cache is None:
+            self._schema_cache = [tool.to_openai_schema() for tool in self._tools.values()]
+        return self._schema_cache
 
     async def execute(self, name: str, arguments: dict) -> ToolResult:
         tool = self._tools.get(name)

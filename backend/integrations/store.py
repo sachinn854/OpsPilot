@@ -5,6 +5,7 @@ Tokens are encrypted at rest using Fernet. Each org can have one token
 per service (github, slack, jira, linear, etc.).
 """
 import json
+import time
 from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
@@ -12,6 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models import IntegrationToken
 from backend.integrations.encrypt import decrypt_token, encrypt_token
+
+# In-process token cache: (org_id, service) → (decrypted_token, expiry_monotonic)
+# Avoids a DB round-trip on every tool call. Invalidated on save/delete.
+_TOKEN_CACHE: dict[tuple[str, str], tuple[str | None, float]] = {}
+_TOKEN_TTL = 60.0  # seconds
 
 SUPPORTED_SERVICES = {
     "github", "slack", "jira", "linear", "pagerduty", "openrouter", "google",
@@ -45,6 +51,8 @@ async def save_token(
     session.add(row)
     await session.commit()
     await session.refresh(row)
+    # Warm the cache so the next call is instant.
+    _TOKEN_CACHE[(org_id, service)] = (token, time.monotonic() + _TOKEN_TTL)
     return row
 
 
@@ -55,6 +63,11 @@ async def get_token(
     service: str,
 ) -> str | None:
     """Return the decrypted token for (org, service), or None if not set."""
+    key = (org_id, service)
+    cached_val, expiry = _TOKEN_CACHE.get(key, (None, 0.0))
+    if expiry > time.monotonic():
+        return cached_val
+
     result = await session.execute(
         select(IntegrationToken).where(
             IntegrationToken.org_id == org_id,
@@ -63,11 +76,14 @@ async def get_token(
     )
     row = result.scalar_one_or_none()
     if row is None:
+        _TOKEN_CACHE[key] = (None, time.monotonic() + _TOKEN_TTL)
         return None
     try:
-        return decrypt_token(row.token_encrypted)
+        value = decrypt_token(row.token_encrypted)
     except ValueError:
-        return None
+        value = None
+    _TOKEN_CACHE[key] = (value, time.monotonic() + _TOKEN_TTL)
+    return value
 
 
 async def delete_token(
@@ -84,6 +100,7 @@ async def delete_token(
         )
     )
     await session.commit()
+    _TOKEN_CACHE.pop((org_id, service), None)
     return result.rowcount > 0
 
 

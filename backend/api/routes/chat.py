@@ -74,17 +74,35 @@ _WEEKLY_FREE_LIMIT = 6
 _WEEK_TTL = 7 * 24 * 3600  # 604800 seconds
 
 
+_router_singleton = None
+
+
 def _get_router():
-    from backend.core.tool_router import build_default_router
-    return build_default_router()
+    global _router_singleton
+    if _router_singleton is None:
+        from backend.core.tool_router import build_default_router
+        _router_singleton = build_default_router()
+    return _router_singleton
+
+
+_redis_pool = None
+
+
+def _get_redis():
+    global _redis_pool
+    if _redis_pool is None:
+        import redis.asyncio as aioredis
+        _redis_pool = aioredis.from_url(
+            settings.REDIS_URL, decode_responses=True, max_connections=10
+        )
+    return _redis_pool
 
 
 async def _enforce_weekly_limit(user_id: str) -> None:
     """Check + increment the weekly free-tier counter. Raises 429 when exhausted."""
-    import redis.asyncio as aioredis
-    r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
     key = f"chat_weekly:{user_id}"
     try:
+        r = _get_redis()
         count = int(await r.get(key) or 0)
         if count >= _WEEKLY_FREE_LIMIT:
             raise HTTPException(
@@ -106,11 +124,6 @@ async def _enforce_weekly_limit(user_id: str) -> None:
         logging.getLogger("copilot.chat").warning(
             "Redis unavailable for rate limit check — allowing request through: %s", exc
         )
-    finally:
-        try:
-            await r.aclose()
-        except Exception:
-            pass
 
 
 async def _resolve_api_key(user, session) -> str | None:
