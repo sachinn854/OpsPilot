@@ -5,18 +5,6 @@ import { fetchConversationMessages, getToken } from '../api'
 
 const API_ROOT = import.meta.env.VITE_API_URL || ''
 
-function Avatar() {
-  return (
-    <div style={{
-      width: 28, height: 28, borderRadius: 7,
-      background: 'var(--accent)', color: '#fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.02em',
-      flexShrink: 0,
-    }}>AI</div>
-  )
-}
-
 function Markdown({ text }) {
   return (
     <div className="md">
@@ -36,7 +24,7 @@ function ToolIndicator({ toolMsg }) {
           </span>
         </>
       ) : (
-        <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
           {[0, 1, 2].map(n => (
             <span key={n} style={{
               width: 6, height: 6, borderRadius: '50%', background: 'var(--text3)',
@@ -67,7 +55,6 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
   const inputRef  = useRef()
   const abortRef  = useRef(null)
 
-  // Load messages when active conversation changes
   useEffect(() => {
     if (!activeConvId) {
       setMessages([])
@@ -83,17 +70,14 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
       .finally(() => setLoading(false))
   }, [activeConvId])
 
-  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streaming, toolMsg])
 
-  // Abort any in-flight stream on unmount
   useEffect(() => {
     return () => { abortRef.current?.abort() }
   }, [])
 
-  // Focus input on mount and when active conv changes
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [activeConvId])
@@ -136,7 +120,6 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
       const reader = res.body.getReader()
       const dec = new TextDecoder()
       let buf = ''
-      let newConvId = null
 
       const appendToken = t => {
         setMessages(prev => {
@@ -157,7 +140,6 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
           let p; try { p = JSON.parse(line.slice(5).trim()) } catch { continue }
 
           if (p.event === 'start') {
-            newConvId = p.conversation_id
             setActiveConvId(p.conversation_id)
             if (isNew) onConvCreated?.(p.conversation_id, text.slice(0, 50))
           } else if (p.event === 'tool') {
@@ -195,138 +177,103 @@ export default function Chat({ activeConvId, setActiveConvId, convTitle, onConvC
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 4.5rem)' }}>
-
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: '1rem', flexShrink: 0,
-      }}>
-        <div>
-          <div className="page-title">{convTitle || 'Chat'}</div>
-          <div className="page-subtitle">Conversational assistant — uses tools + your documents</div>
-        </div>
-        {streaming && (
-          <button
-            className="btn btn-ghost"
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.78rem', color: 'var(--red)' }}
-            onClick={stopStream}
-          >
-            ◼ Stop
-          </button>
-        )}
-      </div>
+    <div className="chat-root">
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.25rem' }}>
-        {loading && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem', color: 'var(--text3)', fontSize: '0.85rem' }}>
-            Loading messages…
-          </div>
-        )}
+      <div className="chat-messages">
+        <div className="chat-thread">
 
-        {!loading && messages.length === 0 && (
-          <div style={{
-            height: '100%', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: '0.85rem',
-          }}>
-            <div style={{ fontSize: '1.8rem', color: 'var(--text3)' }}>◎</div>
-            <div style={{ fontSize: '0.88rem', color: 'var(--text3)', textAlign: 'center', maxWidth: 380, lineHeight: 1.6 }}>
-              Ask anything — I can search your documents, check GitHub issues & PRs, and more.
+          {loading && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem', color: 'var(--text3)', fontSize: '0.85rem' }}>
+              <div className="spinner" style={{ marginRight: '0.5rem' }} /> Loading messages…
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', justifyContent: 'center', marginTop: '0.25rem' }}>
-              {SUGGESTIONS.map((s, i) => (
-                <button key={i} className="suggestion" onClick={() => setInput(s)}>{s}</button>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
 
-        {!loading && messages.map((m, i) => (
-          <div key={i} style={{
-            display: 'flex',
-            gap: '0.65rem',
-            justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start',
-            padding: '0.35rem 0',
-          }}>
-            {m.role === 'assistant' && <Avatar />}
-            <div style={{
-              maxWidth: '74%',
-              background: m.role === 'user' ? '#2563eb' : 'var(--surface2)',
-              color: m.role === 'user' ? '#fff' : 'var(--text)',
-              border: m.role === 'user' ? 'none' : '1px solid var(--border)',
-              borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
-              padding: '0.7rem 0.95rem',
-              fontSize: '0.88rem',
-              lineHeight: 1.65,
-            }}>
-              {m.role === 'user'
-                ? <span style={{ whiteSpace: 'pre-wrap' }}>{m.content}</span>
-                : (m.content
-                  ? <Markdown text={m.content} />
-                  : (i === messages.length - 1 && (toolMsg || streaming))
-                    ? <ToolIndicator toolMsg={toolMsg} />
-                    : null)
-              }
+          {!loading && messages.length === 0 && (
+            <div className="chat-empty">
+              <div className="chat-empty-icon">◎</div>
+              <div className="chat-empty-title">What can I help with?</div>
+              <div className="chat-empty-desc">
+                Ask anything — I can search your documents, check GitHub, call tools, and more.
+              </div>
+              <div className="chat-suggestions">
+                {SUGGESTIONS.map((s, i) => (
+                  <button key={i} className="suggestion" onClick={() => setInput(s)}>{s}</button>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          )}
 
-        {error && (
-          <div className="error" style={{ margin: '0.5rem 0' }}>
-            {error}
-            {error.toLowerCase().includes('api key') && (
-              <span>
-                {' — '}
-                <a href="#settings" style={{ color: '#f87171', textDecoration: 'underline' }}
-                  onClick={e => { e.preventDefault(); window.location.hash = 'settings' }}>
-                  Go to Settings
-                </a>
-              </span>
-            )}
-          </div>
-        )}
-        <div ref={bottomRef} />
+          {!loading && messages.map((m, i) => (
+            <div key={i} className={`msg-row ${m.role}`}>
+              {m.role === 'assistant' && (
+                <div className="msg-avatar">AI</div>
+              )}
+              <div className={`msg-bubble ${m.role}`}>
+                {m.role === 'user'
+                  ? <span style={{ whiteSpace: 'pre-wrap' }}>{m.content}</span>
+                  : (m.content
+                    ? <Markdown text={m.content} />
+                    : (i === messages.length - 1 && (toolMsg || streaming))
+                      ? <ToolIndicator toolMsg={toolMsg} />
+                      : null)
+                }
+              </div>
+            </div>
+          ))}
+
+          {error && (
+            <div className="error" style={{ margin: '0.5rem 0' }}>
+              {error}
+              {error.toLowerCase().includes('api key') && (
+                <span>
+                  {' — '}
+                  <a href="#settings" style={{ color: '#f87171', textDecoration: 'underline' }}
+                    onClick={e => { e.preventDefault(); window.location.hash = 'settings' }}>
+                    Go to Settings
+                  </a>
+                </span>
+              )}
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* Input */}
-      <form
-        onSubmit={handleSend}
-        style={{
-          display: 'flex', gap: '0.5rem',
-          paddingTop: '0.85rem', borderTop: '1px solid var(--border)', flexShrink: 0,
-        }}
-      >
-        <textarea
-          ref={inputRef}
-          rows={1}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Message…  (Enter to send, Shift+Enter for new line)"
-          disabled={streaming}
-          style={{
-            flex: 1,
-            background: 'var(--surface2)',
-            border: '1px solid var(--border2)',
-            borderRadius: 'var(--r-sm)',
-            color: 'var(--text)',
-            padding: '0.65rem 0.9rem',
-            fontSize: '0.88rem',
-            fontFamily: 'Inter, sans-serif',
-            resize: 'none', lineHeight: 1.55,
-            maxHeight: 140, overflowY: 'auto',
-          }}
-        />
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={streaming || !input.trim()}
-          style={{ flexShrink: 0, alignSelf: 'flex-end', padding: '0.65rem 1rem' }}
-        >
-          {streaming ? <div className="spinner" style={{ borderTopColor: '#fff' }} /> : '↑'}
-        </button>
-      </form>
+      <div className="chat-bottom">
+        <form className="chat-form" onSubmit={handleSend}>
+          <textarea
+            ref={inputRef}
+            rows={1}
+            className="chat-textarea"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Message OpsPilot…"
+            disabled={streaming}
+          />
+          {streaming ? (
+            <button type="button" className="chat-stop" onClick={stopStream}>
+              ◼ Stop
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="chat-send"
+              disabled={!input.trim()}
+            >
+              {streaming ? <div className="spinner" style={{ borderTopColor: '#fff', width: 16, height: 16 }} /> : '↑'}
+            </button>
+          )}
+        </form>
+        <div className="chat-hint">
+          <span>Enter to send · Shift+Enter for new line</span>
+          <span>{input.length > 0 ? `${input.length} / 4000` : ''}</span>
+        </div>
+      </div>
+
     </div>
   )
 }
