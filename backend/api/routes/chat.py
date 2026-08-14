@@ -103,10 +103,8 @@ async def _enforce_weekly_limit(user_id: str) -> None:
         raise
     except Exception as exc:
         import logging
-        logging.getLogger("copilot.chat").warning("Redis unavailable for rate limit check: %s", exc)
-        raise HTTPException(
-            status_code=503,
-            detail="Service temporarily unavailable. Please try again in a moment.",
+        logging.getLogger("copilot.chat").warning(
+            "Redis unavailable for rate limit check — allowing request through: %s", exc
         )
     finally:
         try:
