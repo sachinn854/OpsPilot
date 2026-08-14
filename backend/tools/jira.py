@@ -29,12 +29,14 @@ from backend.tools.base import Tool, ToolResult
 # Helpers
 # ---------------------------------------------------------------------------
 
-async def _get_jira_config(org_id: str = "default") -> dict | None:
+async def _get_jira_config(org_id: str | None = None) -> dict | None:
     try:
+        from backend.core.context import current_org_id
         from backend.db.session import AsyncSessionLocal
         from backend.integrations.store import get_token
+        oid = org_id or current_org_id.get()
         async with AsyncSessionLocal() as session:
-            raw = await get_token(session, org_id=org_id, service="jira")
+            raw = await get_token(session, org_id=oid, service="jira")
         if not raw:
             return None
         return json.loads(raw)

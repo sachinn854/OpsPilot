@@ -24,12 +24,14 @@ from backend.tools.base import Tool, ToolResult
 PD_BASE = "https://api.pagerduty.com"
 
 
-async def _get_pd_token(org_id: str = "default") -> str | None:
+async def _get_pd_token(org_id: str | None = None) -> str | None:
     try:
+        from backend.core.context import current_org_id
         from backend.db.session import AsyncSessionLocal
         from backend.integrations.store import get_token
+        oid = org_id or current_org_id.get()
         async with AsyncSessionLocal() as session:
-            raw = await get_token(session, org_id=org_id, service="pagerduty")
+            raw = await get_token(session, org_id=oid, service="pagerduty")
         if not raw:
             return None
         data = json.loads(raw)

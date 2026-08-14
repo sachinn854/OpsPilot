@@ -67,6 +67,8 @@ class Orchestrator:
         top_k: int | None = None,
     ):
         """Async generator that yields SSE-formatted strings as each graph node finishes."""
+        from backend.core.context import current_org_id
+        current_org_id.set(org_id)
         run = Run(org_id=org_id, goal=goal, status="running")
         session.add(run)
         await session.flush()
@@ -114,6 +116,8 @@ class Orchestrator:
         org_id: str = "default",
         top_k: int | None = None,
     ) -> RunResult:
+        from backend.core.context import current_org_id
+        current_org_id.set(org_id)
         run = Run(org_id=org_id, goal=goal, status="running")
         session.add(run)
         await session.flush()  # assigns run.id

@@ -25,12 +25,14 @@ NOTION_BASE = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
 
 
-async def _get_notion_token(org_id: str = "default") -> str | None:
+async def _get_notion_token(org_id: str | None = None) -> str | None:
     try:
+        from backend.core.context import current_org_id
         from backend.db.session import AsyncSessionLocal
         from backend.integrations.store import get_token
+        oid = org_id or current_org_id.get()
         async with AsyncSessionLocal() as session:
-            raw = await get_token(session, org_id=org_id, service="notion")
+            raw = await get_token(session, org_id=oid, service="notion")
         if not raw:
             return None
         data = json.loads(raw)

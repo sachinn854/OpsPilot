@@ -44,17 +44,19 @@ def _headers(token: str) -> dict:
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
-async def _get_org_token(org_id: str = "default") -> str | None:
+async def _get_org_token(org_id: str | None = None) -> str | None:
     try:
+        from backend.core.context import current_org_id
         from backend.db.session import AsyncSessionLocal
         from backend.integrations.store import get_token
+        oid = org_id or current_org_id.get()
         async with AsyncSessionLocal() as session:
-            return await get_token(session, org_id=org_id, service="slack")
+            return await get_token(session, org_id=oid, service="slack")
     except Exception:
         return None
 
 
-async def _token(org_id: str = "default") -> str | None:
+async def _token(org_id: str | None = None) -> str | None:
     return await _get_org_token(org_id) or settings.SLACK_TOKEN or None
 
 

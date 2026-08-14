@@ -145,6 +145,8 @@ async def _resolve_api_key(user, session) -> str | None:
 
 
 async def _get_copilot(user, session) -> CopilotAgent:
+    from backend.core.context import current_org_id
+    current_org_id.set(str(user.id))
     api_key = await _resolve_api_key(user, session)
     return CopilotAgent(llm=get_llm_for_user(user, api_key=api_key), router=_get_router())
 
@@ -247,6 +249,8 @@ async def chat_stream(
     history = [{"role": m.role, "content": m.content} for m in reversed(result.scalars().all())]
     history.append({"role": "user", "content": req.message})
 
+    from backend.core.context import current_org_id
+    current_org_id.set(str(current_user.id))
     user_api_key = await _resolve_api_key(current_user, session)
 
     session.add(Message(conversation_id=conversation.id, role="user", content=req.message))

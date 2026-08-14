@@ -52,18 +52,20 @@ def _headers(token: str | None = None) -> dict:
     return headers
 
 
-async def _get_org_token(org_id: str = "default") -> str | None:
+async def _get_org_token(org_id: str | None = None) -> str | None:
     """Fetch GitHub token for this org from DB."""
     try:
+        from backend.core.context import current_org_id
         from backend.db.session import AsyncSessionLocal
         from backend.integrations.store import get_token
+        oid = org_id or current_org_id.get()
         async with AsyncSessionLocal() as session:
-            return await get_token(session, org_id=org_id, service="github")
+            return await get_token(session, org_id=oid, service="github")
     except Exception:
         return None
 
 
-async def _resolve_token(org_id: str = "default") -> str | None:
+async def _resolve_token(org_id: str | None = None) -> str | None:
     """Best available token: DB first, then .env fallback."""
     return await _get_org_token(org_id) or settings.GITHUB_TOKEN or None
 
