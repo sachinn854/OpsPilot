@@ -39,11 +39,9 @@ services:
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
+      # External Upstash Redis (TLS) — paste rediss:// URL in the dashboard when prompted
       - key: REDIS_URL
-        fromService:
-          name: opspilot-redis
-          type: keyvalue
-          property: connectionString
+        sync: false
       # Optional — leave sync:false, fill if you use them
       - key: GITHUB_TOKEN
         sync: false
@@ -79,10 +77,6 @@ services:
       - key: PORT
         value: 3000
 
-  # Managed Redis — replaces external surprise-behavior... (NXDOMAIN)
-  - type: keyvalue
-    name: opspilot-redis
-    plan: free
-    ipAllowList:
-      - source: 0.0.0.0/0
-        description: allow backend
+  # Redis is provided externally (Upstash) — Render free tier allows only 1 free Key Value
+  # per workspace and creation failed with "cannot have more than 1 free tier Key Value instance".
+  # REDIS_URL is wired via env var (sync:false) instead.
