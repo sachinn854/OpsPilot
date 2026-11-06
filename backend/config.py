@@ -31,8 +31,9 @@ class Settings(BaseSettings):
     # --- OpenRouter ---
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "anthropic/claude-haiku-4-5"
-    # Small free model for prompt-section classification + chat title generation.
-    CLASSIFIER_MODEL: str = "google/gemma-4-31b-it:free"
+    # Small model for prompt-section classification + chat title generation.
+    # NOTE: :free suffix may trigger ZDR 404 on some OpenRouter accounts — use non-free alias.
+    CLASSIFIER_MODEL: str = "meta-llama/llama-3.1-8b-instruct"
 
     # --- Ollama (local LLM) ---
     OLLAMA_BASE_URL: str = "http://localhost:11434"
@@ -63,6 +64,22 @@ class Settings(BaseSettings):
 
     # --- PostgreSQL ---
     DATABASE_URL: str = "postgresql+asyncpg://copilot:copilot_pass@localhost:5432/copilot"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def _fix_db_url(cls, v: str) -> str:
+        # Normalize prefix — asyncpg needs postgresql+asyncpg:// driver specifier
+        if v.startswith("postgres://"):
+            v = "postgresql+asyncpg://" + v[len("postgres://"):]
+        elif v.startswith("postgresql://") and "+asyncpg" not in v:
+            v = "postgresql+asyncpg://" + v[len("postgresql://"):]
+        # Strip libpq-only query params that asyncpg doesn't support
+        # (sslmode, channel_binding) — SSL is set via connect_args instead
+        for param in ("sslmode", "channel_binding"):
+            import re
+            v = re.sub(rf"[?&]{param}=[^&]*", "", v)
+        v = v.rstrip("?&")
+        return v
 
     # --- Redis ---
     REDIS_URL: str = "redis://localhost:6379/0"

@@ -1,0 +1,88 @@
+# Render Blueprint — OpsPilot (Backend + Frontend + Managed Redis)
+# Deploy: Dashboard → New+ → Blueprint → repo select → Branch main → Path render.yaml
+services:
+  - type: web
+    name: opspilot-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: LOG_LEVEL
+        value: info
+      # After first deploy, add https://<frontend>.onrender.com here (comma-separated, no spaces)
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:3000,http://localhost:5173
+      - key: LLM_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_MODEL
+        value: openai/gpt-oss-120b
+      # NOTE: :free suffix may trigger ZDR 404 on some OpenRouter accounts — use non-free alias
+      - key: CLASSIFIER_MODEL
+        value: meta-llama/llama-3.1-8b-instruct
+      # --- secrets (BluePrint will prompt "Enter value" — paste same value in both services where needed) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: opspilot-redis
+          type: keyvalue
+          property: connectionString
+      # Optional — leave sync:false, fill if you use them
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: SLACK_TOKEN
+        sync: false
+      - key: SLACK_APP_TOKEN
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://opspilot-backend.onrender.com/v1/integrations/google/callback
+      - key: QDRANT_COLLECTION
+        value: documents
+
+  - type: web
+    name: opspilot-frontend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    autoDeploy: false
+    envVars:
+      # Build-time baked via ARG VITE_API_URL in frontend/Dockerfile. Set to https://<backend>.onrender.com
+      - key: VITE_API_URL
+        sync: false
+      - key: PORT
+        value: 3000
+
+  # Managed Redis — replaces external surprise-behavior... (NXDOMAIN)
+  - type: keyvalue
+    name: opspilot-redis
+    plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: allow backend

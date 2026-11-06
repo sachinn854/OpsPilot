@@ -23,11 +23,11 @@ def extract_text(filename: str, raw: bytes) -> str:
             raise ValueError(f"Could not read PDF '{filename}': {exc}") from exc
         if not text:
             raise ValueError(f"PDF '{filename}' contains no extractable text (scanned/image PDF?).")
-        return text
+        return text.replace("\x00", "")
 
     if name.endswith((".txt", ".md", ".markdown", ".text", "")) or not name:
-        # Best-effort decode for text-like files.
-        return raw.decode("utf-8", errors="ignore").strip()
+        # Best-effort decode for text-like files. Strip null bytes — Postgres/asyncpg rejects \x00.
+        return raw.decode("utf-8", errors="ignore").replace("\x00", "").strip()
 
     raise ValueError(
         f"Unsupported file type: {filename!r}. Upload .txt, .md, or .pdf."

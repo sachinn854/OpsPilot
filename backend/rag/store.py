@@ -53,6 +53,7 @@ async def ensure_collection(dim: int) -> None:
 
     If an older collection exists without the sparse "bm25" vector (e.g. created
     before hybrid search), it is recreated so the schema matches.
+    Also ensures keyword indexes on org_id/document_id so filtered queries don't 400.
     """
     client = get_client()
     name = settings.QDRANT_COLLECTION
@@ -62,6 +63,8 @@ async def ensure_collection(dim: int) -> None:
             info = await client.get_collection(name)
             sparse = info.config.params.sparse_vectors or {}
             if SPARSE in sparse:
+                # Collection already hybrid — just ensure payload indexes exist.
+                await _ensure_payload_indexes(client, name)
                 return  # already hybrid-ready
         except Exception:
             pass
@@ -72,6 +75,18 @@ async def ensure_collection(dim: int) -> None:
         vectors_config={DENSE: VectorParams(size=dim, distance=Distance.COSINE, on_disk=True)},
         sparse_vectors_config={SPARSE: SparseVectorParams(modifier=Modifier.IDF, index={"on_disk": True})},
     )
+    await _ensure_payload_indexes(client, name)
+
+
+async def _ensure_payload_indexes(client: AsyncQdrantClient, name: str) -> None:
+    """Create keyword indexes for filtered fields (idempotent)."""
+    for field in ("org_id", "document_id"):
+        try:
+            await client.create_payload_index(
+                collection_name=name, field_name=field, field_schema="keyword"
+            )
+        except Exception:
+            pass  # already exists
 
 
 async def upsert_points(points: list[PointStruct]) -> None:

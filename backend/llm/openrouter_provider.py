@@ -44,6 +44,7 @@ class OpenRouterProvider(LLMProvider):
             "model": self._model,
             "messages": messages,
             "temperature": temperature,
+            "max_tokens": 1024,
         }
         if tools:
             kwargs["tools"] = tools
@@ -94,6 +95,7 @@ class OpenRouterProvider(LLMProvider):
             "model": self._model,
             "messages": messages,
             "temperature": temperature,
+            "max_tokens": 1024,
             "stream": True,
         }
         if tools:
